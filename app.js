@@ -47,11 +47,15 @@
     priceFilter: document.querySelector("#priceFilter"),
     familyFilter: document.querySelector("#familyFilter"),
     clearFilters: document.querySelector("#clearFilters"),
+    clearSearchFilters: document.querySelector("#clearSearchFilters"),
     hero: document.querySelector("#home"),
     brand: document.querySelector(".brand"),
     resultCount: document.querySelector("#resultCount"),
     scheduleList: document.querySelector("#scheduleList"),
     mapPanel: document.querySelector("#mapPanel"),
+    mapShell: document.querySelector(".map-shell"),
+    mapKey: document.querySelector("#mapKey"),
+    mapKeyToggle: document.querySelector("#mapKeyToggle"),
     locationsGrid: document.querySelector("#locationsGrid"),
     eventModal: document.querySelector("#eventModal"),
     eventModalMap: document.querySelector("#eventModalMap"),
@@ -59,6 +63,7 @@
     tabButtons: [...document.querySelectorAll("[data-tab-target]")],
     tabPanels: [...document.querySelectorAll("[data-tab-panel]")],
     quickFilterList: document.querySelector(".quick-filter-list"),
+    explorerLocationFilters: document.querySelector(".explorer-location-filters"),
     quickFilters: [...document.querySelectorAll("[data-quick-filter]")],
     locationFilters: [...document.querySelectorAll("[data-location-directory-filter]")]
   };
@@ -83,6 +88,7 @@
 
     renderFilterOptions();
     bindEvents();
+    renderMapKeyIcons();
     renderAll();
     initMap();
     setTimeout(alignInitialHash, 120);
@@ -91,7 +97,8 @@
   function bindEvents() {
     els.searchInput.addEventListener("input", (event) => {
       state.filters.search = event.target.value.trim().toLowerCase();
-      setActiveTab("schedule");
+      setActiveTab("schedule", { scroll: true });
+      updateFilterClearState();
       renderSchedule();
     });
 
@@ -103,6 +110,11 @@
       toggleSearch(false);
     });
 
+    els.mapKeyToggle?.addEventListener("click", (event) => {
+      event.stopPropagation();
+      toggleMapKey(!els.mapKey?.classList.contains("is-open"));
+    });
+
     els.dayFilter.addEventListener("change", updateSelectFilter("day"));
     els.categoryFilter.addEventListener("change", updateSelectFilter("category"));
     els.locationFilter.addEventListener("change", updateSelectFilter("location"));
@@ -110,11 +122,28 @@
     els.familyFilter.addEventListener("change", (event) => {
       state.filters.family = event.target.checked;
       updateQuickFilterState(inferQuickFilterState());
+      updateFilterClearState();
       renderSchedule();
     });
     els.clearFilters.addEventListener("click", () => resetFilters(true));
+    els.clearSearchFilters?.addEventListener("click", () => {
+      els.clearSearchFilters.hidden = true;
+      resetFilters(true);
+    });
 
     document.addEventListener("click", (event) => {
+      if (!els.searchPanel.hidden
+        && !els.searchPanel.contains(event.target)
+        && !els.searchToggle.contains(event.target)) {
+        toggleSearch(false);
+      }
+
+      if (els.mapKey?.classList.contains("is-open")
+        && !els.mapKey.contains(event.target)
+        && !els.mapKeyToggle?.contains(event.target)) {
+        toggleMapKey(false);
+      }
+
       const target = event.target.closest("[data-action], [data-tab-target]");
       if (!target) return;
 
@@ -140,6 +169,10 @@
 
       if (target.dataset.action === "schedule-location") {
         showScheduleForLocation(locationId);
+      }
+
+      if (target.dataset.action === "schedule-event") {
+        showEventInSchedule(eventId);
       }
 
       if (target.dataset.action === "toggle-place") {
@@ -216,6 +249,12 @@
     }
   }
 
+  function toggleMapKey(open) {
+    if (!els.mapKey || !els.mapKeyToggle) return;
+    els.mapKey.classList.toggle("is-open", open);
+    els.mapKeyToggle.setAttribute("aria-expanded", String(open));
+  }
+
   function setActiveTab(tabName, options = {}) {
     if (!tabName) return;
     state.activeTab = tabName;
@@ -235,14 +274,36 @@
     if (els.quickFilterList) {
       els.quickFilterList.hidden = tabName !== "schedule";
     }
+    if (els.explorerLocationFilters) {
+      els.explorerLocationFilters.hidden = !["map", "locations"].includes(tabName);
+    }
 
     if (tabName === "map" && state.map) {
-      setTimeout(() => state.map.resize(), 60);
+      setTimeout(() => {
+        state.map.resize();
+      }, 60);
     }
 
     if (options.scroll) {
-      document.querySelector("#explorer").scrollIntoView({ behavior: "smooth", block: "start" });
+      scrollTabContentIntoView(tabName);
     }
+  }
+
+  function scrollTabContentIntoView(tabName) {
+    const scrollTarget = tabName === "schedule"
+      ? document.querySelector("#schedule")
+      : tabName === "map"
+        ? document.querySelector("#map-section")
+        : tabName === "locations"
+          ? document.querySelector("#locations")
+          : document.querySelector("#explorer");
+    if (!scrollTarget) return;
+
+    const stickyOffset = window.matchMedia("(max-width: 520px)").matches
+      ? 12.4 * parseFloat(getComputedStyle(document.documentElement).fontSize)
+      : 8 * parseFloat(getComputedStyle(document.documentElement).fontSize);
+    const top = scrollTarget.getBoundingClientRect().top + window.scrollY - stickyOffset;
+    window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
   }
 
   function dismissHero() {
@@ -257,6 +318,7 @@
     return (event) => {
       state.filters[name] = event.target.value;
       updateQuickFilterState(inferQuickFilterState());
+      updateFilterClearState();
       renderSchedule();
     };
   }
@@ -351,6 +413,7 @@
 
   function renderSchedule() {
     const filtered = getFilteredEvents();
+    updateFilterClearState();
     els.resultCount.textContent = `${filtered.length} event${filtered.length === 1 ? "" : "s"} shown`;
 
     if (!filtered.length) {
@@ -439,8 +502,11 @@
       <div class="location-event-list">
         ${placeEvents.map((event) => `
           <button type="button" data-action="event-focus" data-event-id="${event.id}">
-            <strong>${event.dayLabel}, ${formatDate(event.date)} at ${event.startTime}</strong>
-            <span>${event.title}</span>
+            <span class="place-event-main">
+              <strong>${event.dayLabel}, ${formatDate(event.date)} at ${event.startTime}</strong>
+              <span>${event.title}</span>
+            </span>
+            ${eventPriceBadge(event)}
           </button>
         `).join("")}
       </div>
@@ -515,10 +581,16 @@
 
   function applyLocationDirectoryFilter(filterName) {
     state.locationDirectoryFilter = filterName || "all";
+    updateLocationFilterState();
+    updateFilterClearState();
+    renderLocations();
+    refreshMapMarkers();
+  }
+
+  function updateLocationFilterState() {
     els.locationFilters.forEach((button) => {
       button.classList.toggle("is-active", button.dataset.locationDirectoryFilter === state.locationDirectoryFilter);
     });
-    renderLocations();
   }
 
   function toggleDayGroup(date) {
@@ -560,6 +632,7 @@
       ${event.familyFriendly ? `<span class="tag family">Family friendly</span>` : ""}
       <div class="event-actions">
         <button class="button primary" type="button" data-action="show-map" data-event-id="${event.id}" data-location-id="${event.locationId}">Show on map</button>
+        <button class="button" type="button" data-action="schedule-event" data-event-id="${event.id}">View in schedule</button>
         <button class="button" type="button" data-action="calendar" data-event-id="${event.id}">Add to Calendar</button>
         <button class="button" type="button" data-action="copy-link" data-event-id="${event.id}">Copy event link</button>
         <button class="button" type="button" data-action="share" data-event-id="${event.id}">Share</button>
@@ -581,6 +654,7 @@
     const freeCount = placeEvents.filter(isFree).length;
 
     els.eventModalContent.innerHTML = `
+      ${directionsLink(place)}
       <p class="eyebrow">${place.type}</p>
       <h2 id="eventModalTitle">${place.name}</h2>
       <p>${place.description}</p>
@@ -746,7 +820,7 @@
         id: "festival-point-icons",
         type: "symbol",
         source: "festival-points",
-        filter: ["!=", ["get", "kind"], "pub"],
+        filter: ["!", ["match", ["get", "kind"], ["pub", "pub-food"], true, false]],
         layout: {
           "icon-image": ["get", "icon"],
           "icon-allow-overlap": true,
@@ -761,7 +835,7 @@
         id: "festival-point-pub-icons",
         type: "symbol",
         source: "festival-points",
-        filter: ["==", ["get", "kind"], "pub"],
+        filter: ["match", ["get", "kind"], ["pub", "pub-food"], true, false],
         layout: {
           "icon-image": ["get", "icon"],
           "icon-allow-overlap": true,
@@ -784,28 +858,21 @@
 
   function buildMapPointFeatures() {
     const features = [];
+    const yearEvents = currentYearEvents();
 
     locations.forEach((location) => {
       if (!hasValidCoordinates(location)) {
         console.warn("Skipping festival location with invalid coordinates:", location);
         return;
       }
+      if (!placeMatchesLocationFilter({ ...location, kind: "location" }, yearEvents)) return;
+
       features.push(mapPointFeature(location, {
         pointId: `location:${location.id}`,
         locationId: location.id,
-        pointType: "location"
+        pointType: "location",
+        kind: location.id === "white-sands" ? "pub-food" : undefined
       }));
-
-      if (location.id === "white-sands") {
-        const foodPlace = { ...location, name: `${location.name} food`, type: "Restaurant", icon: "restaurant" };
-        features.push(mapPointFeature(foodPlace, {
-          pointId: "location:white-sands:food",
-          locationId: location.id,
-          pointType: "linked-location",
-          lng: location.lng + 0.00013,
-          lat: location.lat - 0.00002
-        }));
-      }
     });
 
     mapFeatures.forEach((feature) => {
@@ -813,6 +880,7 @@
         console.warn("Skipping map feature with invalid coordinates:", feature);
         return;
       }
+      if (!placeMatchesLocationFilter({ ...feature, kind: "feature" }, yearEvents)) return;
       features.push(mapPointFeature(feature, {
         pointId: `feature:${feature.id}`,
         featureId: feature.id,
@@ -824,7 +892,7 @@
   }
 
   function mapPointFeature(place, options) {
-    const kind = markerKind(place);
+    const kind = options.kind || markerKind(place);
     return {
       type: "Feature",
       geometry: {
@@ -851,7 +919,7 @@
 
   function firstMapPointFeatureAt(point) {
     const features = state.map.queryRenderedFeatures(point, { layers: mapPointLayers() });
-    const pubFeature = features.find((feature) => feature.properties?.kind === "pub");
+    const pubFeature = features.find((feature) => ["pub", "pub-food"].includes(feature.properties?.kind));
     return pubFeature || features[0];
   }
 
@@ -928,6 +996,7 @@
     if (!feature) return;
 
     els.mapPanel.innerHTML = `
+      ${directionsLink(feature)}
       <h3>${feature.name}</h3>
       <p><strong>${feature.type}</strong></p>
       <p>${feature.description}</p>
@@ -941,6 +1010,7 @@
     if (!location) return;
 
     els.mapPanel.innerHTML = `
+      ${directionsLink(location)}
       <h3>${location.name}</h3>
       <p><strong>${location.type}</strong></p>
       <p>${location.description}</p>
@@ -951,7 +1021,10 @@
               <h4>${dayEvents[0].dayLabel}, ${formatDate(date)}</h4>
               ${dayEvents.map((event) => `
                 <div class="panel-event">
-                  <button type="button" data-action="event-focus" data-event-id="${event.id}">${event.title}</button>
+                  <div class="panel-event-title-row">
+                    <button type="button" data-action="event-focus" data-event-id="${event.id}">${event.title}</button>
+                    ${eventPriceBadge(event)}
+                  </div>
                   <div>${formatTimeRange(event)} | ${event.category}</div>
                 </div>
               `).join("")}
@@ -1021,13 +1094,27 @@
 
   function showScheduleForLocation(locationId) {
     if (!locationById.has(locationId)) return;
+    const firstLocationEvent = currentYearEvents().find((event) => event.locationId === locationId);
     if (!els.eventModal.hidden) {
       closeEventModal();
     }
-    state.filters.location = locationId;
-    syncFilterInputs();
+    resetFilters(false);
     renderSchedule();
     setActiveTab("schedule", { scroll: true });
+    if (firstLocationEvent) {
+      setTimeout(() => focusEventCard(firstLocationEvent.id), 180);
+    }
+  }
+
+  function showEventInSchedule(eventId) {
+    if (!events.some((event) => event.id === eventId)) return;
+    if (!els.eventModal.hidden) {
+      closeEventModal();
+    }
+    resetFilters(false);
+    renderSchedule();
+    setActiveTab("schedule", { scroll: true });
+    setTimeout(() => focusEventCard(eventId), 180);
   }
 
   function resetFilters(render = true) {
@@ -1039,8 +1126,12 @@
       price: "all",
       family: false
     };
+    state.locationDirectoryFilter = "all";
     syncFilterInputs();
     updateQuickFilterState("all");
+    updateLocationFilterState();
+    renderLocations();
+    refreshMapMarkers();
     if (render) {
       renderSchedule();
     }
@@ -1093,6 +1184,26 @@
     els.locationFilter.value = state.filters.location;
     els.priceFilter.value = state.filters.price;
     els.familyFilter.checked = state.filters.family;
+    updateFilterClearState();
+  }
+
+  function filtersAreActive() {
+    return Boolean(state.filters.search)
+      || state.filters.day !== "all"
+      || state.filters.category !== "all"
+      || state.filters.location !== "all"
+      || state.filters.price !== "all"
+      || state.filters.family
+      || state.locationDirectoryFilter !== "all";
+  }
+
+  function updateFilterClearState() {
+    if (els.clearSearchFilters) {
+      els.clearSearchFilters.hidden = !filtersAreActive();
+    }
+    if (els.clearFilters) {
+      els.clearFilters.hidden = true;
+    }
   }
 
   function downloadCalendarEvent(eventId) {
@@ -1202,7 +1313,7 @@
   }
 
   function registerMapIcons() {
-    ["pub", "food", "shop", "statue", "parking", "toilet", "beach", "event"].forEach((kind) => {
+    ["pub", "pub-food", "food", "shop", "statue", "parking", "toilet", "beach", "event"].forEach((kind) => {
       const id = `festival-icon-${kind}`;
       if (!state.map.hasImage(id)) {
         state.map.addImage(id, drawMapIcon(kind), { pixelRatio: 2 });
@@ -1222,6 +1333,7 @@
     const yellow = "#f7c331";
     const radius = {
       pub: 42,
+      "pub-food": 42,
       food: 34,
       shop: 34,
       statue: 28,
@@ -1244,7 +1356,12 @@
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
 
-    if (kind === "pub") {
+    if (kind === "pub" || kind === "pub-food") {
+      if (kind === "pub-food") {
+        ctx.save();
+        ctx.translate(-6, 8);
+        ctx.scale(0.72, 0.72);
+      }
       ctx.fillRect(36, 38, 24, 34);
       ctx.beginPath();
       ctx.moveTo(34, 36);
@@ -1256,6 +1373,29 @@
       ctx.fillStyle = yellow;
       ctx.fill();
       ctx.fillStyle = black;
+      if (kind === "pub-food") {
+        ctx.restore();
+        ctx.save();
+        ctx.translate(25, 8);
+        ctx.scale(0.72, 0.72);
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(35, 28);
+        ctx.lineTo(35, 68);
+        ctx.moveTo(28, 28);
+        ctx.lineTo(28, 44);
+        ctx.quadraticCurveTo(28, 54, 35, 54);
+        ctx.moveTo(42, 28);
+        ctx.lineTo(42, 44);
+        ctx.quadraticCurveTo(42, 54, 35, 54);
+        ctx.moveTo(58, 28);
+        ctx.lineTo(58, 68);
+        ctx.moveTo(58, 28);
+        ctx.quadraticCurveTo(72, 38, 66, 56);
+        ctx.quadraticCurveTo(63, 61, 58, 61);
+        ctx.stroke();
+        ctx.restore();
+      }
     } else if (kind === "food") {
       ctx.lineWidth = 5;
       ctx.beginPath();
@@ -1340,6 +1480,7 @@
   function markerSortKey(kind) {
     return {
       pub: 70,
+      "pub-food": 72,
       food: 60,
       shop: 55,
       statue: 50,
@@ -1389,6 +1530,14 @@
     return icons[markerKind(place)] || icons.event;
   }
 
+  function renderMapKeyIcons() {
+    document.querySelectorAll("[data-key-kind]").forEach((item) => {
+      const kind = item.dataset.keyKind;
+      item.classList.add(`key-${kind}`);
+      item.innerHTML = markerIcon({ type: kind === "event" ? "Festival venue" : kind, icon: kind });
+    });
+  }
+
 
   function eventStart(event) {
     return new Date(`${event.date}T${event.startTime}:00`);
@@ -1433,6 +1582,22 @@
 
   function isFree(event) {
     return !event.price || event.price.toLowerCase().includes("free");
+  }
+
+  function eventPriceBadge(event) {
+    return event.price && !isFree(event)
+      ? `<span class="inline-price">${event.price}</span>`
+      : "";
+  }
+
+  function directionsLink(place) {
+    if (!hasValidCoordinates(place)) return "";
+    const destination = encodeURIComponent(`${place.lat},${place.lng}`);
+    return `
+      <a class="directions-link" href="https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=walking" target="_blank" rel="noopener noreferrer">
+        Open in Google Maps
+      </a>
+    `;
   }
 
   function toCalendarDate(date) {

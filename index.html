@@ -24,6 +24,7 @@
       </nav>
     </header>
 
+    <button class="search-clear-floating" type="button" id="clearSearchFilters" hidden>Clear</button>
     <button class="search-toggle" id="searchToggle" type="button" aria-expanded="false" aria-controls="siteSearch" aria-label="Open search"></button>
     <div class="floating-search" id="siteSearch" hidden>
       <div class="search-row">
@@ -96,6 +97,15 @@
           <button class="quick-filter" type="button" data-quick-filter="music">Music</button>
           <button class="quick-filter" type="button" data-quick-filter="kids">Kids</button>
         </div>
+        <div class="location-filter-list explorer-location-filters" aria-label="Place filters" hidden>
+          <button class="location-filter is-active" type="button" data-location-directory-filter="all">All</button>
+          <button class="location-filter" type="button" data-location-directory-filter="bar">Bar</button>
+          <button class="location-filter" type="button" data-location-directory-filter="food">Food</button>
+          <button class="location-filter" type="button" data-location-directory-filter="shop">Shop</button>
+          <button class="location-filter" type="button" data-location-directory-filter="free">Free</button>
+          <button class="location-filter" type="button" data-location-directory-filter="parking">Parking</button>
+          <button class="location-filter" type="button" data-location-directory-filter="wc">WC</button>
+        </div>
       </section>
 
       <section class="section schedule-section tab-panel" id="schedule" role="tabpanel" aria-labelledby="tab-schedule" data-tab-panel="schedule">
@@ -116,16 +126,17 @@
           <p>Click a marker to see everything happening at that location for the selected year.</p>
         </div>
         <div class="map-shell">
-          <aside class="map-key" aria-label="Map key">
+          <aside class="map-key" id="mapKey" aria-label="Map key">
             <h3>Map key</h3>
-            <div><span class="key-icon key-pub" aria-hidden="true">P</span> Pubs and bars</div>
-            <div><span class="key-icon key-food" aria-hidden="true">F</span> Food and cafes</div>
-            <div><span class="key-icon key-shop" aria-hidden="true">S</span> Shops and pharmacy</div>
-            <div><span class="key-icon key-parking" aria-hidden="true">P</span> Parking</div>
-            <div><span class="key-icon key-toilet" aria-hidden="true">WC</span> Bathrooms</div>
-            <div><span class="key-icon key-statue" aria-hidden="true">St</span> Statue</div>
-            <div><span class="key-icon key-event" aria-hidden="true">E</span> Festival venues</div>
+            <div><span class="key-icon" data-key-kind="pub" aria-hidden="true"></span> Pubs and bars</div>
+            <div><span class="key-icon" data-key-kind="food" aria-hidden="true"></span> Food and cafes</div>
+            <div><span class="key-icon" data-key-kind="shop" aria-hidden="true"></span> Shops and pharmacy</div>
+            <div><span class="key-icon" data-key-kind="parking" aria-hidden="true"></span> Parking</div>
+            <div><span class="key-icon" data-key-kind="toilet" aria-hidden="true"></span> Bathrooms</div>
+            <div><span class="key-icon" data-key-kind="statue" aria-hidden="true"></span> Statue</div>
+            <div><span class="key-icon" data-key-kind="event" aria-hidden="true"></span> Festival venues</div>
           </aside>
+          <button class="map-key-toggle" id="mapKeyToggle" type="button" aria-expanded="false" aria-controls="mapKey" aria-label="Open map key">?</button>
           <div id="festivalMap" aria-label="Interactive Ballyheigue festival map"></div>
           <aside class="map-panel" id="mapPanel" aria-live="polite">
             <h3>Choose a location</h3>
@@ -139,15 +150,6 @@
           <p class="eyebrow">Venues</p>
           <h2>Locations</h2>
           <p>Browse festival places and jump straight to the events happening there.</p>
-        </div>
-        <div class="location-filter-list" aria-label="Location filters">
-          <button class="location-filter is-active" type="button" data-location-directory-filter="all">All</button>
-          <button class="location-filter" type="button" data-location-directory-filter="bar">Bar</button>
-          <button class="location-filter" type="button" data-location-directory-filter="food">Food</button>
-          <button class="location-filter" type="button" data-location-directory-filter="shop">Shop</button>
-          <button class="location-filter" type="button" data-location-directory-filter="free">Free</button>
-          <button class="location-filter" type="button" data-location-directory-filter="parking">Parking</button>
-          <button class="location-filter" type="button" data-location-directory-filter="wc">WC</button>
         </div>
         <div class="locations-grid" id="locationsGrid"></div>
       </section>
