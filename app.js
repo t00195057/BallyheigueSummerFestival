@@ -11,7 +11,7 @@
   const mapFeatures = normalizeLocations(window.festivalMapFeatures || []);
   const categories = window.festivalCategories || [];
 
-  const ACTIVE_YEAR = 2025;
+  const ACTIVE_YEAR = 2026;
   const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
   const locationById = new Map(locations.map((location) => [location.id, location]));
 
@@ -403,7 +403,7 @@
           const location = locationById.get(event.locationId);
           return `
             <h3>${event.title}</h3>
-            <p>${formatTimeRange(event)} at ${location?.name || "Location TBC"}</p>
+            <p>${formatTimeRange(event)} at ${eventLocationName(event)}</p>
             <button class="button" data-action="show-map" data-location-id="${event.locationId}">Show on map</button>
           `;
         }).join("")}
@@ -458,7 +458,7 @@
               <span>${event.title}</span>
             </span>
             ${priceLabel}
-            <span class="event-summary-meta">${event.category} | ${location?.name || "Location TBC"}</span>
+            <span class="event-summary-meta">${event.category} | ${eventLocationName(event)}</span>
           </button>
         </div>
       </article>
@@ -519,7 +519,7 @@
     if (state.locationDirectoryFilter === "bar") return isBarPlace(place);
     if (state.locationDirectoryFilter === "food") return isFoodPlace(place);
     if (state.locationDirectoryFilter === "shop") return isShopPlace(place);
-    if (state.locationDirectoryFilter === "free") return eventList.some(isFree);
+    if (state.locationDirectoryFilter === "events") return eventList.length > 0;
     if (state.locationDirectoryFilter === "parking") return isParkingPlace(place);
     if (state.locationDirectoryFilter === "wc") return isToiletPlace(place);
     return true;
@@ -621,7 +621,7 @@
         </div>
         <div>
           <dt>Where</dt>
-          <dd>${location?.name || "Location TBC"}</dd>
+          <dd>${eventLocationName(event)}</dd>
         </div>
         <div>
           <dt>Cost</dt>
@@ -651,7 +651,7 @@
     const placeEvents = place.kind === "location"
       ? currentYearEvents().filter((event) => event.locationId === place.id)
       : [];
-    const freeCount = placeEvents.filter(isFree).length;
+    const eventDayCount = new Set(placeEvents.map((event) => event.date)).size;
 
     els.eventModalContent.innerHTML = `
       ${directionsLink(place)}
@@ -668,8 +668,8 @@
           <dd>${placeEvents.length ? `${placeEvents.length} in ${state.year}` : "Map only"}</dd>
         </div>
         <div>
-          <dt>Free events</dt>
-          <dd>${freeCount}</dd>
+          <dt>Event days</dt>
+          <dd>${eventDayCount}</dd>
         </div>
         <div>
           <dt>Map</dt>
@@ -749,7 +749,7 @@
   function getFilteredEvents() {
     return currentYearEvents().filter((event) => {
       const location = locationById.get(event.locationId);
-      const haystack = `${event.title} ${event.description} ${event.category} ${location?.name || ""}`.toLowerCase();
+      const haystack = `${event.title} ${event.description} ${event.category} ${eventLocationName(event)}`.toLowerCase();
       if (state.filters.search && !haystack.includes(state.filters.search)) return false;
       if (state.filters.day !== "all" && event.date !== state.filters.day) return false;
       if (state.filters.category !== "all" && event.category !== state.filters.category) return false;
@@ -1221,7 +1221,7 @@
       `DTSTART:${toCalendarDate(eventStart(event))}`,
       `DTEND:${toCalendarDate(eventEnd(event))}`,
       `SUMMARY:${escapeIcs(event.title)}`,
-      `LOCATION:${escapeIcs(location?.name || "Ballyheigue")}`,
+      `LOCATION:${escapeIcs(eventLocationName(event) || "Ballyheigue")}`,
       `DESCRIPTION:${escapeIcs(event.description)}`,
       "END:VEVENT",
       "END:VCALENDAR"
@@ -1313,7 +1313,7 @@
   }
 
   function registerMapIcons() {
-    ["pub", "pub-food", "food", "shop", "statue", "parking", "toilet", "beach", "event"].forEach((kind) => {
+    ["pub", "pub-food", "food", "shop", "statue", "parking", "toilet", "sauna", "beach", "event"].forEach((kind) => {
       const id = `festival-icon-${kind}`;
       if (!state.map.hasImage(id)) {
         state.map.addImage(id, drawMapIcon(kind), { pixelRatio: 2 });
@@ -1339,6 +1339,7 @@
       statue: 28,
       parking: 34,
       toilet: 34,
+      sauna: 34,
       beach: 34,
       event: 34
     }[kind] || 34;
@@ -1448,6 +1449,19 @@
       ctx.lineTo(40, 56);
       ctx.closePath();
       ctx.fill();
+    } else if (kind === "sauna") {
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(34, 32);
+      ctx.quadraticCurveTo(28, 38, 34, 44);
+      ctx.moveTo(48, 28);
+      ctx.quadraticCurveTo(42, 36, 48, 44);
+      ctx.moveTo(62, 32);
+      ctx.quadraticCurveTo(56, 38, 62, 44);
+      ctx.stroke();
+      ctx.fillRect(30, 54, 36, 12);
+      ctx.fillRect(34, 66, 6, 8);
+      ctx.fillRect(56, 66, 6, 8);
     } else if (kind === "parking" || kind === "toilet") {
       ctx.font = `900 ${kind === "toilet" ? 28 : 38}px Arial`;
       ctx.textAlign = "center";
@@ -1486,6 +1500,7 @@
       statue: 50,
       parking: 45,
       toilet: 45,
+      sauna: 50,
       beach: 35,
       event: 30
     }[kind] || 20;
@@ -1512,6 +1527,7 @@
     if (["shop", "pharmacy"].some((value) => type.includes(value) || icon.includes(value))) return "shop";
     if (type.includes("parking") || icon.includes("parking")) return "parking";
     if (type.includes("toilet") || icon.includes("toilet")) return "toilet";
+    if (type.includes("sauna") || icon.includes("sauna") || name.includes("sauna")) return "sauna";
     if (type.includes("beach")) return "beach";
     return "event";
   }
@@ -1566,11 +1582,19 @@
     }).format(new Date(`${dateString}T12:00:00`));
   }
 
+  function eventLocationName(event) {
+    const location = locationById.get(event?.locationId);
+    return event?.locationLabel || location?.name || "Location TBC";
+  }
+
   function formatTimeRange(event) {
-    return `${event.startTime} to ${event.endTime}`;
+    if (event.timeLabel) return event.timeLabel;
+    if (event.hasExplicitEnd) return `${event.startTime} to ${event.endTime}`;
+    return event.startTime || "Time TBC";
   }
 
   function formatDuration(event) {
+    if (!event.hasExplicitEnd) return "Not specified";
     const minutes = Math.max(0, Math.round((eventEnd(event) - eventStart(event)) / 60000));
     if (!minutes) return "Time TBC";
     const hours = Math.floor(minutes / 60);
