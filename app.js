@@ -413,15 +413,16 @@
 
   function renderSchedule() {
     const filtered = getFilteredEvents();
+    const scheduleEvents = combineScheduleEvents(filtered);
     updateFilterClearState();
-    els.resultCount.textContent = `${filtered.length} event${filtered.length === 1 ? "" : "s"} shown`;
+    els.resultCount.textContent = `${scheduleEvents.length} event${scheduleEvents.length === 1 ? "" : "s"} shown`;
 
-    if (!filtered.length) {
+    if (!scheduleEvents.length) {
       els.scheduleList.innerHTML = `<div class="empty-state">No events match those filters. Try clearing the filters or choosing another day.</div>`;
       return;
     }
 
-    els.scheduleList.innerHTML = groupBy(filtered, "date")
+    els.scheduleList.innerHTML = groupBy(scheduleEvents, "date")
       .map(([date, dayEvents]) => renderDayGroup(date, dayEvents))
       .join("");
   }
@@ -446,7 +447,6 @@
   }
 
   function renderEventCard(event) {
-    const location = locationById.get(event.locationId);
     const priceLabel = event.price && !isFree(event) ? `<span class="event-price">${event.price}</span>` : `<span class="event-price" aria-hidden="true"></span>`;
     return `
       <article class="event-card${event.image ? " has-image" : ""}" id="event-${event.id}">
@@ -458,7 +458,7 @@
               <span>${event.title}</span>
             </span>
             ${priceLabel}
-            <span class="event-summary-meta">${event.category} | ${eventLocationName(event)}</span>
+            <span class="event-summary-meta">${event.category} | ${scheduleDisplayLocationName(event)}</span>
           </button>
         </div>
       </article>
@@ -748,8 +748,7 @@
 
   function getFilteredEvents() {
     return currentYearEvents().filter((event) => {
-      const location = locationById.get(event.locationId);
-      const haystack = `${event.title} ${event.description} ${event.category} ${eventLocationName(event)}`.toLowerCase();
+      const haystack = `${event.title} ${event.description} ${event.category} ${eventLocationName(event)} ${event.scheduleLocationLabel || ""}`.toLowerCase();
       if (state.filters.search && !haystack.includes(state.filters.search)) return false;
       if (state.filters.day !== "all" && event.date !== state.filters.day) return false;
       if (state.filters.category !== "all" && event.category !== state.filters.category) return false;
@@ -759,6 +758,53 @@
       if (state.filters.family && !event.familyFriendly) return false;
       return true;
     });
+  }
+
+  function combineScheduleEvents(scheduleEvents) {
+    const grouped = new Map();
+    scheduleEvents.forEach((event) => {
+      const key = scheduleGroupKey(event);
+      grouped.set(key, [...(grouped.get(key) || []), event]);
+    });
+
+    return [...grouped.values()].map((group) => {
+      if (group.length === 1) return group[0];
+
+      const first = group[0];
+      const explicitScheduleLabel = group.find((event) => event.scheduleLocationLabel)?.scheduleLocationLabel;
+      const locationLabel = explicitScheduleLabel || uniqueValues(group.map(eventLocationName)).join(", ");
+      return {
+        ...first,
+        relatedEventIds: group.map((event) => event.id),
+        combinedLocationLabel: locationLabel,
+        locationLabel
+      };
+    });
+  }
+
+  function scheduleGroupKey(event) {
+    if (event.scheduleGroupId) return event.scheduleGroupId;
+    return [
+      event.date,
+      event.startTime || "",
+      event.timeLabel || "",
+      event.hasExplicitEnd ? event.endTime || "" : "",
+      event.title.trim().toLowerCase()
+    ].join("|");
+  }
+
+  function scheduleDisplayLocationName(event) {
+    return event.combinedLocationLabel || event.scheduleLocationLabel || eventLocationName(event);
+  }
+
+  function scheduleCardIdForEvent(eventId) {
+    const groupedEvents = combineScheduleEvents(getFilteredEvents());
+    const visibleEvent = groupedEvents.find((event) => event.id === eventId || event.relatedEventIds?.includes(eventId));
+    return visibleEvent?.id || eventId;
+  }
+
+  function uniqueValues(values) {
+    return [...new Set(values.filter(Boolean))];
   }
 
   function initMap() {
