@@ -52,10 +52,10 @@ window.festivalEvents = [
     "startTime": "12:00",
     "endTime": "13:00",
     "category": "Culture",
-    "locationId": "village-centre",
-    "description": "Old Graveyard - Unveiling of sign and historical talk.",
+    "locationId": "old-graveyard",
+    "description": "Old Graveyard - Unveiling of sign and historical talk with Bryan McMahon.",
     "familyFriendly": true,
-    "price": "Bryan McMahon"
+    "locationLabel": "Old Graveyard"
   },
   {
     "id": "2026-cars-and-coffee",
@@ -308,60 +308,68 @@ window.festivalEvents = [
     "price": "€5"
   },
   {
-    "id": "2026-lord-lady-of-ballyheigue-fun-and-games-for-our-contenstants",
+    "id": "2026-lord-lady-of-ballyheigue-flahives",
     "year": 2026,
-    "title": "Lord & Lady of Ballyheigue - fun and games for our contenstants",
+    "title": "Lord & Lady of Ballyheigue - fun and games for our contestants",
     "date": "2026-07-01",
     "dayLabel": "Wednesday",
     "startTime": "20:00",
     "endTime": "21:00",
     "category": "Competition",
-    "locationId": "all-pubs",
-    "description": "Lord & Lady of Ballyheigue - fun and games for our contenstants ?.",
+    "locationId": "flahives",
+    "description": "Lord & Lady of Ballyheigue - fun and games for our contestants.",
     "familyFriendly": false,
-    "locationLabel": "Flahives Bar"
+    "locationLabel": "Flahives Bar",
+    "scheduleGroupId": "2026-lord-lady-of-ballyheigue-all-bars",
+    "scheduleLocationLabel": "All Bars"
   },
-    {
-    "id": "2026-lord-lady-of-ballyheigue-fun-and-games-for-our-contenstants",
+  {
+    "id": "2026-lord-lady-of-ballyheigue-kirbys",
     "year": 2026,
-    "title": "Lord & Lady of Ballyheigue - fun and games for our contenstants",
+    "title": "Lord & Lady of Ballyheigue - fun and games for our contestants",
     "date": "2026-07-01",
     "dayLabel": "Wednesday",
     "startTime": "20:00",
     "endTime": "21:00",
     "category": "Competition",
-    "locationId": "all-pubs",
-    "description": "Lord & Lady of Ballyheigue - fun and games for our contenstants ?.",
+    "locationId": "kirbys",
+    "description": "Lord & Lady of Ballyheigue - fun and games for our contestants.",
     "familyFriendly": false,
-    "locationLabel": "Kirbys Bar"
+    "locationLabel": "Kirby's Bar",
+    "scheduleGroupId": "2026-lord-lady-of-ballyheigue-all-bars",
+    "scheduleLocationLabel": "All Bars"
   },
-    {
-    "id": "2026-lord-lady-of-ballyheigue-fun-and-games-for-our-contenstants",
+  {
+    "id": "2026-lord-lady-of-ballyheigue-reagans",
     "year": 2026,
-    "title": "Lord & Lady of Ballyheigue - fun and games for our contenstants",
+    "title": "Lord & Lady of Ballyheigue - fun and games for our contestants",
     "date": "2026-07-01",
     "dayLabel": "Wednesday",
     "startTime": "20:00",
     "endTime": "21:00",
     "category": "Competition",
-    "locationId": "all-pubs",
-    "description": "Lord & Lady of Ballyheigue - fun and games for our contenstants ?.",
+    "locationId": "reagans",
+    "description": "Lord & Lady of Ballyheigue - fun and games for our contestants.",
     "familyFriendly": false,
-    "locationLabel": "O'Regans Bar"
+    "locationLabel": "O'Regan's Bar",
+    "scheduleGroupId": "2026-lord-lady-of-ballyheigue-all-bars",
+    "scheduleLocationLabel": "All Bars"
   },
-    {
-    "id": "2026-lord-lady-of-ballyheigue-fun-and-games-for-our-contenstants",
+  {
+    "id": "2026-lord-lady-of-ballyheigue-white-sands",
     "year": 2026,
-    "title": "Lord & Lady of Ballyheigue - fun and games for our contenstants",
+    "title": "Lord & Lady of Ballyheigue - fun and games for our contestants",
     "date": "2026-07-01",
     "dayLabel": "Wednesday",
     "startTime": "20:00",
     "endTime": "21:00",
     "category": "Competition",
-    "locationId": "all-pubs",
-    "description": "Lord & Lady of Ballyheigue - fun and games for our contenstants ?.",
+    "locationId": "white-sands",
+    "description": "Lord & Lady of Ballyheigue - fun and games for our contestants.",
     "familyFriendly": false,
-    "locationLabel": "White Sands Hotel"
+    "locationLabel": "White Sands Hotel",
+    "scheduleGroupId": "2026-lord-lady-of-ballyheigue-all-bars",
+    "scheduleLocationLabel": "All Bars"
   },
   {
     "id": "2026-kids-fun-at-the-beach-fun-games-for-kids-of-all-ages",
@@ -519,7 +527,8 @@ window.festivalEvents = [
     "locationId": "ballyheigue-beach",
     "description": "Coast guard Demonstration.",
     "familyFriendly": true,
-    "locationLabel": "Ballyheigue Beach"
+    "locationLabel": "Ballyheigue Beach",
+    "scheduleGroupId": "2026-coast-guard-demonstration"
   },
   {
     "id": "2026-coast-guard-demonstration-dolly-s-green",
@@ -533,7 +542,8 @@ window.festivalEvents = [
     "locationId": "dollys-green",
     "description": "Coast guard Demonstration.",
     "familyFriendly": true,
-    "locationLabel": "Dolly's Green"
+    "locationLabel": "Dolly's Green",
+    "scheduleGroupId": "2026-coast-guard-demonstration"
   },
   {
     "id": "2026-ballyheigue-ball-roll",
@@ -560,7 +570,8 @@ window.festivalEvents = [
     "locationId": "reagans",
     "description": "Ballyheigues Best Storyteller (5 Min max).",
     "familyFriendly": false,
-    "locationLabel": "O'Regan's Bar"
+    "locationLabel": "O'Regan's Bar",
+    "scheduleGroupId": "2026-ballyheigues-best-storyteller"
   },
   {
     "id": "2026-ballyheigues-best-storyteller-5-min-max-2",
@@ -574,7 +585,8 @@ window.festivalEvents = [
     "locationId": "kirbys",
     "description": "Ballyheigues Best Storyteller (5 Min max).",
     "familyFriendly": false,
-    "locationLabel": "Kirby's Bar"
+    "locationLabel": "Kirby's Bar",
+    "scheduleGroupId": "2026-ballyheigues-best-storyteller"
   },
   {
     "id": "2026-darts-competition",

@@ -160,7 +160,11 @@
         if (!els.eventModal.hidden) {
           closeEventModal();
         }
-        focusLocation(locationId, { openPanel: true, scroll: true });
+        if (eventId) {
+          focusEventLocations(eventId, { scroll: true });
+        } else {
+          focusLocation(locationId, { openPanel: true, scroll: true });
+        }
       }
 
       if (target.dataset.action === "filter-location") {
@@ -604,8 +608,10 @@
 
   function openEventModal(eventId) {
     const event = events.find((item) => item.id === eventId);
-    const location = locationById.get(event?.locationId);
     if (!event) return;
+
+    const relatedEvents = relatedEventsForEvent(event);
+    const eventLocations = locationsForEvents(relatedEvents);
 
     els.eventModalContent.innerHTML = `
       <p class="eyebrow">${event.category}</p>
@@ -621,7 +627,7 @@
         </div>
         <div>
           <dt>Where</dt>
-          <dd>${eventLocationName(event)}</dd>
+          <dd>${modalLocationLabel(relatedEvents)}</dd>
         </div>
         <div>
           <dt>Cost</dt>
@@ -641,7 +647,7 @@
 
     els.eventModal.hidden = false;
     document.body.classList.add("modal-open");
-    renderEventModalMap(location);
+    renderEventModalMap(eventLocations);
   }
 
   function openPlaceModal(placeKey) {
@@ -700,33 +706,44 @@
     }
   }
 
-  function renderEventModalMap(location) {
+  function renderEventModalMap(eventLocations) {
     if (state.modalMap) {
       state.modalMap.remove();
       state.modalMap = null;
     }
 
+    const validLocations = eventLocations.filter(hasValidCoordinates);
     els.eventModalMap.innerHTML = "";
-    if (!window.maplibregl || !hasValidCoordinates(location)) {
+    if (!window.maplibregl || !validLocations.length) {
       els.eventModalMap.innerHTML = `<div class="map-fallback">Location map unavailable.</div>`;
       return;
     }
 
+    const firstLocation = validLocations[0];
     state.modalMap = new maplibregl.Map({
       container: "eventModalMap",
       style: MAP_STYLE_URL,
-      center: [location.lng, location.lat],
+      center: [firstLocation.lng, firstLocation.lat],
       zoom: 16.2,
       interactive: false,
       attributionControl: false
     });
 
-    const markerElement = document.createElement("span");
-    markerElement.className = `${markerClassName(location, Boolean(location.icon))} modal-map-marker`;
-    markerElement.innerHTML = markerIcon(location);
-    new maplibregl.Marker({ element: markerElement, anchor: "center" })
-      .setLngLat([location.lng, location.lat])
-      .addTo(state.modalMap);
+    const bounds = new maplibregl.LngLatBounds();
+    validLocations.forEach((location) => {
+      bounds.extend([location.lng, location.lat]);
+      const markerElement = document.createElement("span");
+      markerElement.className = `${markerClassName(location, Boolean(location.icon))} modal-map-marker`;
+      markerElement.innerHTML = markerIcon(location);
+      markerElement.title = location.name;
+      new maplibregl.Marker({ element: markerElement, anchor: "center" })
+        .setLngLat([location.lng, location.lat])
+        .addTo(state.modalMap);
+    });
+
+    if (validLocations.length > 1) {
+      state.modalMap.fitBounds(bounds, { padding: 56, maxZoom: 16.2, duration: 0 });
+    }
 
     setTimeout(() => state.modalMap?.resize(), 80);
   }
@@ -795,6 +812,26 @@
 
   function scheduleDisplayLocationName(event) {
     return event.combinedLocationLabel || event.scheduleLocationLabel || eventLocationName(event);
+  }
+
+  function relatedEventsForEvent(event) {
+    const key = scheduleGroupKey(event);
+    return currentYearEvents().filter((item) => scheduleGroupKey(item) === key);
+  }
+
+  function locationsForEvents(eventList) {
+    const seen = new Set();
+    return eventList
+      .map((event) => locationById.get(event.locationId))
+      .filter((location) => {
+        if (!location || seen.has(location.id)) return false;
+        seen.add(location.id);
+        return true;
+      });
+  }
+
+  function modalLocationLabel(eventList) {
+    return uniqueValues(eventList.map(eventLocationName)).join(", ") || "Location TBC";
   }
 
   function scheduleCardIdForEvent(eventId) {
@@ -1107,6 +1144,49 @@
     if (options.scroll) {
       document.querySelector("#explorer").scrollIntoView({ behavior: "smooth" });
     }
+  }
+
+  function focusEventLocations(eventId, options = {}) {
+    const event = events.find((item) => item.id === eventId);
+    if (!event || !state.map) return;
+
+    const eventLocations = locationsForEvents(relatedEventsForEvent(event)).filter(hasValidCoordinates);
+    if (!eventLocations.length) return;
+    if (eventLocations.length === 1) {
+      focusLocation(eventLocations[0].id, { openPanel: true, scroll: options.scroll });
+      return;
+    }
+
+    setActiveTab("map");
+    state.selectedLocationId = null;
+    state.map.resize();
+    const bounds = new maplibregl.LngLatBounds();
+    eventLocations.forEach((location) => bounds.extend([location.lng, location.lat]));
+    state.map.fitBounds(bounds, { padding: 80, maxZoom: 16.2, essential: true });
+    renderMultiLocationMapPanel(event, eventLocations);
+    setActiveMapPoint("");
+
+    if (options.scroll) {
+      document.querySelector("#explorer").scrollIntoView({ behavior: "smooth" });
+    }
+  }
+
+  function renderMultiLocationMapPanel(event, eventLocations) {
+    els.mapPanel.innerHTML = `
+      <h3>${event.title}</h3>
+      <p><strong>${event.category}</strong></p>
+      <p>${formatTimeRange(event)} | ${modalLocationLabel(relatedEventsForEvent(event))}</p>
+      <div class="panel-events">
+        ${eventLocations.map((location) => `
+          <div class="panel-event">
+            <div class="panel-event-title-row">
+              <button type="button" data-action="show-map" data-location-id="${location.id}">${location.name}</button>
+            </div>
+            <div>${location.type}</div>
+          </div>
+        `).join("")}
+      </div>
+    `;
   }
 
   function focusFeature(featureId) {
