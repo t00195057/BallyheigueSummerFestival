@@ -20,7 +20,7 @@ window.festivalLocations = [
   { id: "roger-casement-statue", name: "Roger Casement Statue", type: "Landmark", lat: 52.389124, lng: -9.834917, description: "Meeting point at the Roger Casement Statue." },
   { id: "dollys-green", name: "Dolly's Green", type: "Green", lat: 52.389255, lng: -9.835633, description: "Green area used for charity events." },
   { id: "village-centre", name: "Village Centre", type: "Village", lat: 52.3867, lng: -9.8279, description: "Central Ballyheigue village area." },
-  { id: "old-graveyard", name: "Old Graveyard", type: "History", lat: 52.38915, lng: -9.83195, description: "Old Graveyard event location. Coordinates can be adjusted later." },
+  { id: "old-graveyard", name: "Old Graveyard", type: "History", lat: 52.3924839146561,  lng: -9.830777849007035, description: "Old Graveyard event location. Coordinates can be adjusted later." },
   { id: "lower-beach-car-park", name: "Lower Beach Car Park", type: "Car Park", lat: 52.38816468692044, lng: -9.834637, description: "Lower beach car park beside Ballyheigue Beach." },
   { id: "lifeguard-hut", name: "Lifeguard Hut", type: "Beach", lat: 52.38777655431471, lng: -9.8345601, description: "Meeting point by the seasonal lifeguard station." },
   { id: "golf-club", name: "Golf Club", type: "Sports", lat: 52.39268026423675, lng: -9.8391699, description: "Ballyheigue golf club." },

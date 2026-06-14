@@ -42,8 +42,8 @@ window.festivalMapFeatures = [
     icon: "cafe"
   },
   {
-    id: "krusty-krub",
-    name: "Krusty Krub",
+    id: "Eskimo",
+    name: "Eskimo",
     type: "Takeaway",
     lat: 52.3894,
     lng: -9.833152,

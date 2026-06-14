@@ -11,19 +11,16 @@
 */
 window.festivalCategories = [
   "Music",
-  "Family",
   "Sport",
-  "Food",
   "Community",
   "Kids",
-  "Nightlife",
-  "Culture",
   "Outdoor",
-  "Charity",
   "Competition",
   "Wellness",
-  "History",
-  "Fitness"
+  "Culture",
+  "Food",
+  "Charity",
+  "Nightlife"
 ];
 
 window.festivalEvents = [

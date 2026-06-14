@@ -32,7 +32,9 @@
     selectedLocationId: null,
     locationDirectoryFilter: "all",
     activeTab: "schedule",
-    modalMap: null
+    modalMap: null,
+    outsideVillageLocations: [],
+    mapOutsideMode: "hint"
   };
 
   const els = {
@@ -64,6 +66,7 @@
     tabPanels: [...document.querySelectorAll("[data-tab-panel]")],
     quickFilterList: document.querySelector(".quick-filter-list"),
     explorerLocationFilters: document.querySelector(".explorer-location-filters"),
+    mapOutsideHint: document.querySelector("#mapOutsideHint"),
     quickFilters: [...document.querySelectorAll("[data-quick-filter]")],
     locationFilters: [...document.querySelectorAll("[data-location-directory-filter]")]
   };
@@ -231,6 +234,8 @@
       button.addEventListener("click", () => applyLocationDirectoryFilter(button.dataset.locationDirectoryFilter));
     });
 
+    els.mapOutsideHint?.addEventListener("click", focusOutsideVillageLocations);
+
     window.addEventListener("hashchange", focusEventFromHash);
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && !els.searchPanel.hidden) {
@@ -351,8 +356,8 @@
     ].join("");
 
     els.categoryFilter.innerHTML = [
-      `<option value="all">All categories</option>`,
-      ...categories.map((category) => `<option value="${category}">${category}</option>`)
+      `<option value="all">All event types</option>`,
+      ...categoryFilterOptions(yearEvents).map((category) => `<option value="${category}">${categoryLabel(category)}</option>`)
     ].join("");
 
     els.locationFilter.innerHTML = [
@@ -631,7 +636,7 @@
         </div>
         <div>
           <dt>Cost</dt>
-          <dd>${event.price || "Price TBC"}</dd>
+          <dd>${eventCostLabel(event)}</dd>
         </div>
       </dl>
       <p>${event.description}</p>
@@ -671,7 +676,7 @@
         </div>
         <div>
           <dt>Events</dt>
-          <dd>${placeEvents.length ? `${placeEvents.length} in ${state.year}` : "Map only"}</dd>
+          <dd>${placeEvents.length ? `${placeEvents.length} in ${state.year}` : "None listed"}</dd>
         </div>
         <div>
           <dt>Event days</dt>
@@ -712,7 +717,8 @@
       state.modalMap = null;
     }
 
-    const validLocations = eventLocations.filter(hasValidCoordinates);
+    const mapLocations = Array.isArray(eventLocations) ? eventLocations : [eventLocations];
+    const validLocations = mapLocations.filter(hasValidCoordinates);
     els.eventModalMap.innerHTML = "";
     if (!window.maplibregl || !validLocations.length) {
       els.eventModalMap.innerHTML = `<div class="map-fallback">Location map unavailable.</div>`;
@@ -743,6 +749,10 @@
 
     if (validLocations.length > 1) {
       state.modalMap.fitBounds(bounds, { padding: 56, maxZoom: 16.2, duration: 0 });
+      const hint = document.createElement("div");
+      hint.className = "modal-map-location-hint";
+      hint.textContent = `${validLocations.length} locations shown`;
+      els.eventModalMap.appendChild(hint);
     }
 
     setTimeout(() => state.modalMap?.resize(), 80);
@@ -768,13 +778,45 @@
       const haystack = `${event.title} ${event.description} ${event.category} ${eventLocationName(event)} ${event.scheduleLocationLabel || ""}`.toLowerCase();
       if (state.filters.search && !haystack.includes(state.filters.search)) return false;
       if (state.filters.day !== "all" && event.date !== state.filters.day) return false;
-      if (state.filters.category !== "all" && event.category !== state.filters.category) return false;
+      if (state.filters.category !== "all" && !eventMatchesCategory(event, state.filters.category)) return false;
       if (state.filters.location !== "all" && event.locationId !== state.filters.location) return false;
       if (state.filters.price === "free" && !isFree(event)) return false;
       if (state.filters.price === "paid" && isFree(event)) return false;
       if (state.filters.family && !event.familyFriendly) return false;
       return true;
     });
+  }
+
+  function categoryFilterOptions(yearEvents) {
+    const usedCategories = new Set(yearEvents.map((event) => event.category));
+    return categories.filter((category) => category === "Nightlife" || usedCategories.has(category));
+  }
+
+  function categoryLabel(category) {
+    const labels = {
+      Community: "Community events",
+      Competition: "Competitions",
+      Culture: "History & culture",
+      Food: "Food events",
+      Kids: "Kids events",
+      Music: "Music",
+      Nightlife: "Evening / Nightlife (after 5pm)",
+      Outdoor: "Beach & outdoor",
+      Sport: "Sport & fitness",
+      Wellness: "Wellness"
+    };
+    return labels[category] || category;
+  }
+
+  function eventMatchesCategory(event, category) {
+    if (category === "Nightlife") return isEveningEvent(event);
+    if (category === "Sport") return ["Sport", "Fitness"].includes(event.category);
+    return event.category === category;
+  }
+
+  function isEveningEvent(event) {
+    const [hour = "0", minute = "0"] = String(event.startTime || "00:00").split(":");
+    return Number(hour) > 17 || (Number(hour) === 17 && Number(minute) >= 0);
   }
 
   function combineScheduleEvents(scheduleEvents) {
@@ -868,6 +910,7 @@
     }), "bottom-right");
 
     state.map.on("load", refreshMapMarkers);
+    state.map.on("moveend", updateOutsideVillageIndicator);
   }
 
   function refreshMapMarkers() {
@@ -889,13 +932,16 @@
 
       state.map.addLayer({
         id: "festival-point-active",
-        type: "circle",
+        type: "symbol",
         source: "festival-points",
         filter: ["==", ["get", "pointId"], ""],
-        paint: {
-          "circle-color": "#6aa477",
-          "circle-opacity": 0.28,
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 18, 16, 30, 18, 42]
+        layout: {
+          "icon-image": ["get", "haloIcon"],
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+          "icon-anchor": "center",
+          "icon-size": ["interpolate", ["linear"], ["zoom"], 11, 0.68, 16, 0.92, 18, 1.08],
+          "icon-offset": ["get", "iconOffset"]
         }
       });
 
@@ -909,7 +955,8 @@
           "icon-allow-overlap": true,
           "icon-ignore-placement": true,
           "icon-anchor": "center",
-          "icon-size": ["interpolate", ["linear"], ["zoom"], 11, 0.72, 16, 1, 18, 1.18],
+          "icon-size": ["interpolate", ["linear"], ["zoom"], 11, 0.68, 16, 0.92, 18, 1.08],
+          "icon-offset": ["get", "iconOffset"],
           "symbol-sort-key": ["get", "sortKey"]
         }
       });
@@ -924,7 +971,8 @@
           "icon-allow-overlap": true,
           "icon-ignore-placement": true,
           "icon-anchor": "center",
-          "icon-size": ["interpolate", ["linear"], ["zoom"], 11, 0.72, 16, 1, 18, 1.18],
+          "icon-size": ["interpolate", ["linear"], ["zoom"], 11, 0.68, 16, 0.92, 18, 1.08],
+          "icon-offset": ["get", "iconOffset"],
           "symbol-sort-key": ["get", "sortKey"]
         }
       });
@@ -934,13 +982,15 @@
       state.map.getCanvas().addEventListener("mouseleave", clearMapPointHover);
     }
 
+    updateOutsideVillageIndicator();
+
     if (state.selectedLocationId) {
       renderMapPanel(state.selectedLocationId);
     }
   }
 
   function buildMapPointFeatures() {
-    const features = [];
+    const places = [];
     const yearEvents = currentYearEvents();
 
     locations.forEach((location) => {
@@ -950,12 +1000,15 @@
       }
       if (!placeMatchesLocationFilter({ ...location, kind: "location" }, yearEvents)) return;
 
-      features.push(mapPointFeature(location, {
-        pointId: `location:${location.id}`,
-        locationId: location.id,
-        pointType: "location",
-        kind: location.id === "white-sands" ? "pub-food" : undefined
-      }));
+      places.push({
+        place: location,
+        options: {
+          pointId: `location:${location.id}`,
+          locationId: location.id,
+          pointType: "location",
+          kind: location.id === "white-sands" ? "pub-food" : undefined
+        }
+      });
     });
 
     mapFeatures.forEach((feature) => {
@@ -964,14 +1017,43 @@
         return;
       }
       if (!placeMatchesLocationFilter({ ...feature, kind: "feature" }, yearEvents)) return;
-      features.push(mapPointFeature(feature, {
-        pointId: `feature:${feature.id}`,
-        featureId: feature.id,
-        pointType: "feature"
-      }));
+      places.push({
+        place: feature,
+        options: {
+          pointId: `feature:${feature.id}`,
+          featureId: feature.id,
+          pointType: "feature"
+        }
+      });
     });
 
-    return features;
+    return applyMarkerOffsets(places).map(({ place, options }) => mapPointFeature(place, options));
+  }
+
+  function applyMarkerOffsets(places) {
+    const buckets = new Map();
+    places.forEach((item) => {
+      const key = `${Number(item.place.lat).toFixed(3)}:${Number(item.place.lng).toFixed(3)}`;
+      buckets.set(key, [...(buckets.get(key) || []), item]);
+    });
+
+    buckets.forEach((items) => {
+      if (items.length === 1) {
+        items[0].options.iconOffset = [0, 0];
+        return;
+      }
+
+      const step = 28;
+      items
+        .sort((a, b) => markerSortKey(markerKind(b.place)) - markerSortKey(markerKind(a.place)))
+        .forEach((item, index) => {
+          const angle = (Math.PI * 2 * index) / items.length - Math.PI / 2;
+          const distance = step * (items.length > 4 ? 1.15 : 1);
+          item.options.iconOffset = [Math.round(Math.cos(angle) * distance), Math.round(Math.sin(angle) * distance)];
+        });
+    });
+
+    return places;
   }
 
   function mapPointFeature(place, options) {
@@ -991,7 +1073,9 @@
         type: place.type,
         kind,
         icon: `festival-icon-${kind}`,
-        sortKey: markerSortKey(kind)
+        haloIcon: `festival-halo-${kind}`,
+        sortKey: markerSortKey(kind),
+        iconOffset: options.iconOffset || [0, 0]
       }
     };
   }
@@ -1083,7 +1167,6 @@
       <h3>${feature.name}</h3>
       <p><strong>${feature.type}</strong></p>
       <p>${feature.description}</p>
-      <p class="panel-note">Map feature only. No festival events are listed here.</p>
     `;
   }
 
@@ -1118,6 +1201,73 @@
     `;
   }
 
+  function updateOutsideVillageIndicator() {
+    if (!els.mapOutsideHint) return;
+    const yearEvents = currentYearEvents();
+    const outsideLocations = locations
+      .filter((location) => hasValidCoordinates(location))
+      .filter((location) => !isInsideVillageMap(location))
+      .filter((location) => yearEvents.some((event) => event.locationId === location.id))
+      .filter((location) => placeMatchesLocationFilter({ ...location, kind: "location" }, yearEvents));
+
+    state.outsideVillageLocations = outsideLocations;
+    if (!outsideLocations.length) {
+      els.mapOutsideHint.hidden = true;
+      return;
+    }
+
+    const selectedLocation = locationById.get(state.selectedLocationId);
+    const mapCenter = state.map?.getCenter?.();
+    const mapIsOutsideVillage = selectedLocation && !isInsideVillageMap(selectedLocation)
+      || mapCenter && !isInsideVillageMap({ lat: mapCenter.lat, lng: mapCenter.lng });
+
+    els.mapOutsideHint.hidden = false;
+    if (mapIsOutsideVillage) {
+      state.mapOutsideMode = "back";
+      els.mapOutsideHint.dataset.mode = "back";
+      els.mapOutsideHint.dataset.direction = "left";
+      els.mapOutsideHint.querySelector("span").textContent = "Back to Main Street";
+      return;
+    }
+
+    const primary = outsideLocations[0];
+    const extra = outsideLocations.length - 1;
+    state.mapOutsideMode = "hint";
+    els.mapOutsideHint.dataset.mode = "hint";
+    els.mapOutsideHint.dataset.direction = outsideVillageDirection(primary);
+    els.mapOutsideHint.querySelector("span").textContent = extra > 0
+      ? `${outsideLocations.length} event locations this way`
+      : `${primary.name} this way`;
+  }
+
+  function focusOutsideVillageLocations() {
+    if (!state.map) return;
+    if (state.mapOutsideMode === "back") {
+      state.selectedLocationId = null;
+      state.map.once("moveend", updateOutsideVillageIndicator);
+      state.map.flyTo({ center: [-9.835, 52.3894], zoom: 15.65, duration: 500, essential: true });
+      setActiveMapPoint("");
+      els.mapPanel.innerHTML = `<h3>Choose a location</h3><p>Select a marker or use "Show on map" from an event card.</p>`;
+      setTimeout(updateOutsideVillageIndicator, 650);
+      return;
+    }
+
+    if (!state.outsideVillageLocations.length) return;
+    const first = state.outsideVillageLocations[0];
+    focusLocation(first.id, { openPanel: true, scroll: false });
+  }
+
+  function isInsideVillageMap(place) {
+    return place.lat >= 52.3862 && place.lat <= 52.3915 && place.lng >= -9.8396 && place.lng <= -9.827;
+  }
+
+  function outsideVillageDirection(place) {
+    if (place.lng < -9.8396) return "left";
+    if (place.lng > -9.827) return "right";
+    if (place.lat > 52.3915) return "top";
+    return "bottom";
+  }
+
   function focusLocation(locationId, options = {}) {
     const location = locationById.get(locationId);
     if (!location || !state.map || !hasValidCoordinates(location)) return;
@@ -1140,6 +1290,7 @@
       geometry: { coordinates: [location.lng, location.lat] },
       properties: { name: location.name, type: location.type }
     });
+    updateOutsideVillageIndicator();
 
     if (options.scroll) {
       document.querySelector("#explorer").scrollIntoView({ behavior: "smooth" });
@@ -1444,7 +1595,47 @@
       if (!state.map.hasImage(id)) {
         state.map.addImage(id, drawMapIcon(kind), { pixelRatio: 2 });
       }
+      const haloId = `festival-halo-${kind}`;
+      if (!state.map.hasImage(haloId)) {
+        state.map.addImage(haloId, drawMapHalo(kind), { pixelRatio: 2 });
+      }
     });
+  }
+
+  function drawMapHalo(kind) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 96;
+    canvas.height = 96;
+    const ctx = canvas.getContext("2d");
+    const radius = markerHaloRadius(kind);
+
+    ctx.clearRect(0, 0, 96, 96);
+    ctx.beginPath();
+    ctx.arc(48, 48, radius, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(106, 164, 111, 0.26)";
+    ctx.fill();
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = "#fff4d6";
+    ctx.stroke();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "rgba(5, 5, 5, 0.32)";
+    ctx.stroke();
+    return ctx.getImageData(0, 0, canvas.width, canvas.height);
+  }
+
+  function markerHaloRadius(kind) {
+    return {
+      pub: 43,
+      "pub-food": 44,
+      food: 36,
+      shop: 36,
+      statue: 31,
+      parking: 34,
+      toilet: 34,
+      sauna: 34,
+      beach: 36,
+      event: 36
+    }[kind] || 36;
   }
 
   function drawMapIcon(kind) {
@@ -1452,169 +1643,171 @@
     canvas.width = 96;
     canvas.height = 96;
     const ctx = canvas.getContext("2d");
-    const orange = "#ff765d";
+    const orange = "#ff7a18";
     const blue = "#087ca7";
+    const cream = "#fff4d6";
     const black = "#050505";
-    const white = "#ffffff";
-    const yellow = "#f7c331";
     const radius = {
-      pub: 42,
-      "pub-food": 42,
-      food: 34,
-      shop: 34,
-      statue: 28,
-      parking: 34,
-      toilet: 34,
-      sauna: 34,
-      beach: 34,
-      event: 34
-    }[kind] || 34;
+      pub: 37,
+      "pub-food": 39,
+      food: 31,
+      shop: 31,
+      statue: 26,
+      parking: 29,
+      toilet: 29,
+      sauna: 29,
+      beach: 31,
+      event: 31
+    }[kind] || 31;
 
     ctx.clearRect(0, 0, 96, 96);
+    ctx.shadowColor = "rgba(0,0,0,0.24)";
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 5;
     ctx.beginPath();
     ctx.arc(48, 48, radius, 0, Math.PI * 2);
     ctx.fillStyle = ["beach", "event"].includes(kind) ? blue : orange;
     ctx.fill();
-    ctx.lineWidth = 6;
-    ctx.strokeStyle = white;
+    ctx.shadowColor = "transparent";
+    ctx.lineWidth = kind === "pub" || kind === "pub-food" ? 7 : 5;
+    ctx.strokeStyle = cream;
     ctx.stroke();
-    ctx.fillStyle = ["beach", "event"].includes(kind) ? white : black;
+    ctx.fillStyle = ["beach", "event"].includes(kind) ? cream : black;
     ctx.strokeStyle = ctx.fillStyle;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
 
-    if (kind === "pub" || kind === "pub-food") {
-      if (kind === "pub-food") {
-        ctx.save();
-        ctx.translate(-6, 8);
-        ctx.scale(0.72, 0.72);
-      }
-      ctx.fillRect(36, 38, 24, 34);
-      ctx.beginPath();
-      ctx.moveTo(34, 36);
-      ctx.bezierCurveTo(34, 26, 43, 27, 45, 32);
-      ctx.bezierCurveTo(49, 24, 58, 27, 58, 36);
-      ctx.lineTo(58, 42);
-      ctx.lineTo(34, 42);
-      ctx.closePath();
-      ctx.fillStyle = yellow;
-      ctx.fill();
-      ctx.fillStyle = black;
-      if (kind === "pub-food") {
-        ctx.restore();
-        ctx.save();
-        ctx.translate(25, 8);
-        ctx.scale(0.72, 0.72);
-        ctx.lineWidth = 5;
-        ctx.beginPath();
-        ctx.moveTo(35, 28);
-        ctx.lineTo(35, 68);
-        ctx.moveTo(28, 28);
-        ctx.lineTo(28, 44);
-        ctx.quadraticCurveTo(28, 54, 35, 54);
-        ctx.moveTo(42, 28);
-        ctx.lineTo(42, 44);
-        ctx.quadraticCurveTo(42, 54, 35, 54);
-        ctx.moveTo(58, 28);
-        ctx.lineTo(58, 68);
-        ctx.moveTo(58, 28);
-        ctx.quadraticCurveTo(72, 38, 66, 56);
-        ctx.quadraticCurveTo(63, 61, 58, 61);
-        ctx.stroke();
-        ctx.restore();
-      }
-    } else if (kind === "food") {
-      ctx.lineWidth = 5;
-      ctx.beginPath();
-      ctx.moveTo(35, 28);
-      ctx.lineTo(35, 68);
-      ctx.moveTo(28, 28);
-      ctx.lineTo(28, 44);
-      ctx.quadraticCurveTo(28, 54, 35, 54);
-      ctx.moveTo(42, 28);
-      ctx.lineTo(42, 44);
-      ctx.quadraticCurveTo(42, 54, 35, 54);
-      ctx.moveTo(58, 28);
-      ctx.lineTo(58, 68);
-      ctx.moveTo(58, 28);
-      ctx.quadraticCurveTo(72, 38, 66, 56);
-      ctx.quadraticCurveTo(63, 61, 58, 61);
-      ctx.stroke();
-    } else if (kind === "shop") {
-      ctx.beginPath();
-      ctx.moveTo(28, 38);
-      ctx.lineTo(58, 38);
-      ctx.lineTo(64, 72);
-      ctx.lineTo(24, 72);
-      ctx.closePath();
-      ctx.fill();
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.arc(43, 38, 11, Math.PI, Math.PI * 2);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(58, 40);
-      ctx.lineTo(70, 40);
-      ctx.lineTo(74, 72);
-      ctx.lineTo(64, 72);
-      ctx.stroke();
-    } else if (kind === "statue") {
-      ctx.beginPath();
-      ctx.arc(48, 28, 7, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(42, 36);
-      ctx.lineTo(55, 36);
-      ctx.lineTo(61, 58);
-      ctx.lineTo(54, 61);
-      ctx.lineTo(52, 74);
-      ctx.lineTo(45, 74);
-      ctx.lineTo(46, 61);
-      ctx.lineTo(40, 75);
-      ctx.lineTo(33, 75);
-      ctx.lineTo(40, 56);
-      ctx.closePath();
-      ctx.fill();
-    } else if (kind === "sauna") {
-      ctx.lineWidth = 5;
-      ctx.beginPath();
-      ctx.moveTo(34, 32);
-      ctx.quadraticCurveTo(28, 38, 34, 44);
-      ctx.moveTo(48, 28);
-      ctx.quadraticCurveTo(42, 36, 48, 44);
-      ctx.moveTo(62, 32);
-      ctx.quadraticCurveTo(56, 38, 62, 44);
-      ctx.stroke();
-      ctx.fillRect(30, 54, 36, 12);
-      ctx.fillRect(34, 66, 6, 8);
-      ctx.fillRect(56, 66, 6, 8);
-    } else if (kind === "parking" || kind === "toilet") {
-      ctx.font = `900 ${kind === "toilet" ? 28 : 38}px Arial`;
+    drawIconGlyph(ctx, kind, black);
+    return ctx.getImageData(0, 0, canvas.width, canvas.height);
+  }
+
+  function drawIconGlyph(ctx, kind, black) {
+    if (kind === "pub-food") {
+      ctx.save();
+      ctx.translate(-8, 0);
+      ctx.scale(0.78, 0.78);
+      drawBeerGlyph(ctx);
+      ctx.restore();
+      ctx.save();
+      ctx.translate(18, 0);
+      ctx.scale(0.78, 0.78);
+      drawFoodGlyph(ctx);
+      ctx.restore();
+      return;
+    }
+    if (kind === "pub") return drawBeerGlyph(ctx);
+    if (kind === "food") return drawFoodGlyph(ctx);
+    if (kind === "shop") return drawShopGlyph(ctx);
+    if (kind === "statue") return drawStatueGlyph(ctx);
+    if (kind === "sauna") return drawSaunaGlyph(ctx);
+    if (kind === "parking" || kind === "toilet") {
+      ctx.font = `900 ${kind === "toilet" ? 24 : 33}px Arial`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(kind === "toilet" ? "WC" : "P", 48, 50);
-    } else if (kind === "beach") {
-      ctx.lineWidth = 5;
-      ctx.beginPath();
-      ctx.moveTo(30, 62);
-      ctx.quadraticCurveTo(39, 56, 48, 62);
-      ctx.quadraticCurveTo(57, 68, 66, 62);
-      ctx.moveTo(48, 58);
-      ctx.lineTo(48, 34);
-      ctx.moveTo(28, 40);
-      ctx.quadraticCurveTo(48, 24, 68, 40);
-      ctx.closePath();
-      ctx.stroke();
-    } else {
-      ctx.lineWidth = 5;
-      ctx.beginPath();
-      ctx.arc(48, 44, 14, 0, Math.PI * 2);
-      ctx.moveTo(48, 58);
-      ctx.lineTo(48, 70);
-      ctx.stroke();
+      return;
     }
+    if (kind === "beach") return drawBeachGlyph(ctx);
+    drawPinGlyph(ctx);
+  }
 
-    return ctx.getImageData(0, 0, canvas.width, canvas.height);
+  function drawBeerGlyph(ctx) {
+    ctx.fillRect(38, 38, 20, 30);
+    ctx.beginPath();
+    ctx.moveTo(36, 37);
+    ctx.bezierCurveTo(36, 28, 44, 29, 46, 34);
+    ctx.bezierCurveTo(49, 27, 58, 29, 58, 37);
+    ctx.lineTo(58, 42);
+    ctx.lineTo(36, 42);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawFoodGlyph(ctx) {
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(36, 29);
+    ctx.lineTo(36, 68);
+    ctx.moveTo(29, 29);
+    ctx.lineTo(29, 44);
+    ctx.quadraticCurveTo(29, 53, 36, 53);
+    ctx.moveTo(43, 29);
+    ctx.lineTo(43, 44);
+    ctx.quadraticCurveTo(43, 53, 36, 53);
+    ctx.moveTo(59, 29);
+    ctx.lineTo(59, 68);
+    ctx.moveTo(59, 29);
+    ctx.quadraticCurveTo(70, 39, 65, 56);
+    ctx.quadraticCurveTo(63, 61, 59, 61);
+    ctx.stroke();
+  }
+
+  function drawShopGlyph(ctx) {
+    ctx.beginPath();
+    ctx.moveTo(29, 39);
+    ctx.lineTo(59, 39);
+    ctx.lineTo(64, 70);
+    ctx.lineTo(25, 70);
+    ctx.closePath();
+    ctx.fill();
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(44, 39, 10, Math.PI, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  function drawStatueGlyph(ctx) {
+    ctx.beginPath();
+    ctx.arc(48, 30, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(42, 38);
+    ctx.lineTo(55, 38);
+    ctx.lineTo(59, 58);
+    ctx.lineTo(53, 61);
+    ctx.lineTo(52, 72);
+    ctx.lineTo(45, 72);
+    ctx.lineTo(46, 61);
+    ctx.lineTo(40, 72);
+    ctx.lineTo(34, 72);
+    ctx.lineTo(40, 56);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawSaunaGlyph(ctx) {
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(34, 31);
+    ctx.quadraticCurveTo(28, 38, 34, 45);
+    ctx.moveTo(48, 28);
+    ctx.quadraticCurveTo(42, 37, 48, 45);
+    ctx.moveTo(62, 31);
+    ctx.quadraticCurveTo(56, 38, 62, 45);
+    ctx.stroke();
+    ctx.fillRect(31, 55, 34, 11);
+  }
+
+  function drawBeachGlyph(ctx) {
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(30, 62);
+    ctx.quadraticCurveTo(39, 56, 48, 62);
+    ctx.quadraticCurveTo(57, 68, 66, 62);
+    ctx.moveTo(48, 58);
+    ctx.lineTo(48, 34);
+    ctx.moveTo(29, 41);
+    ctx.quadraticCurveTo(48, 25, 67, 41);
+    ctx.stroke();
+  }
+
+  function drawPinGlyph(ctx) {
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(48, 42, 12, 0, Math.PI * 2);
+    ctx.moveTo(48, 54);
+    ctx.lineTo(48, 69);
+    ctx.stroke();
   }
 
   function markerSortKey(kind) {
@@ -1728,6 +1921,10 @@
     if (!hours) return `${remaining} min`;
     if (!remaining) return `${hours} hr${hours === 1 ? "" : "s"}`;
     return `${hours} hr ${remaining} min`;
+  }
+
+  function eventCostLabel(event) {
+    return event.price || "Free";
   }
 
   function isFree(event) {
