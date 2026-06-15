@@ -488,12 +488,17 @@
         ? yearEvents.filter((event) => event.locationId === place.id)
         : [];
       const count = placeEvents.length;
+      const nextEvent = placeEvents[0];
+      const nextEventHtml = nextEvent
+        ? `<span class="location-next">Next: <strong>${nextEvent.title}</strong><small>${shortDayTime(nextEvent)}</small></span>`
+        : `<span class="location-next location-next-empty">Map only</span>`;
       return `
         <article class="location-card compact-location-card" data-place-card="${place.placeKey}">
           <button class="location-summary" type="button" data-action="toggle-place" data-place-key="${place.placeKey}">
             <span>
               <small>${place.type}</small>
               <strong>${place.name}</strong>
+              ${nextEventHtml}
             </span>
             <em>${count ? `${count} event${count === 1 ? "" : "s"}` : "Map only"}</em>
           </button>
@@ -512,7 +517,7 @@
         ${placeEvents.map((event) => `
           <button type="button" data-action="event-focus" data-event-id="${event.id}">
             <span class="place-event-main">
-              <strong>${event.dayLabel}, ${formatDate(event.date)} at ${event.startTime}</strong>
+              <strong>${shortDayTime(event)}</strong>
               <span>${event.title}</span>
             </span>
             ${eventPriceBadge(event)}
@@ -617,18 +622,17 @@
 
     const relatedEvents = relatedEventsForEvent(event);
     const eventLocations = locationsForEvents(relatedEvents);
+    const durationHtml = event.hasExplicitEnd
+      ? `<p class="event-duration-note"><strong>Duration:</strong> ${formatDuration(event)}</p>`
+      : "";
 
     els.eventModalContent.innerHTML = `
       <p class="eyebrow">${event.category}</p>
       <h2 id="eventModalTitle">${event.title}</h2>
-      <dl class="event-modal-facts">
+      <dl class="event-modal-facts event-primary-facts">
         <div>
           <dt>When</dt>
           <dd>${event.dayLabel}, ${formatDate(event.date)}<br>${formatTimeRange(event)}</dd>
-        </div>
-        <div>
-          <dt>Duration</dt>
-          <dd>${formatDuration(event)}</dd>
         </div>
         <div>
           <dt>Where</dt>
@@ -639,14 +643,21 @@
           <dd>${eventCostLabel(event)}</dd>
         </div>
       </dl>
+      ${durationHtml}
       <p>${event.description}</p>
       ${event.familyFriendly ? `<span class="tag family">Family friendly</span>` : ""}
-      <div class="event-actions">
-        <button class="button primary" type="button" data-action="show-map" data-event-id="${event.id}" data-location-id="${event.locationId}">Show on map</button>
-        <button class="button" type="button" data-action="schedule-event" data-event-id="${event.id}">View in schedule</button>
-        <button class="button" type="button" data-action="calendar" data-event-id="${event.id}">Add to Calendar</button>
-        <button class="button" type="button" data-action="copy-link" data-event-id="${event.id}">Copy event link</button>
-        <button class="button" type="button" data-action="share" data-event-id="${event.id}">Share</button>
+      <div class="event-actions event-action-groups">
+        <div class="action-group action-group-primary">
+          <button class="button primary" type="button" data-action="show-map" data-event-id="${event.id}" data-location-id="${event.locationId}">Show on map</button>
+          <button class="button primary" type="button" data-action="calendar" data-event-id="${event.id}">Add to Calendar</button>
+        </div>
+        <div class="action-group">
+          <button class="button" type="button" data-action="share" data-event-id="${event.id}">Share</button>
+          <button class="button" type="button" data-action="copy-link" data-event-id="${event.id}">Copy event link</button>
+        </div>
+        <div class="action-group">
+          <button class="button button-quiet" type="button" data-action="schedule-event" data-event-id="${event.id}">View in schedule</button>
+        </div>
       </div>
     `;
 
@@ -669,24 +680,12 @@
       <p class="eyebrow">${place.type}</p>
       <h2 id="eventModalTitle">${place.name}</h2>
       <p>${place.description}</p>
-      <dl class="event-modal-facts location-modal-facts">
-        <div>
-          <dt>Type</dt>
-          <dd>${place.type}</dd>
-        </div>
-        <div>
-          <dt>Events</dt>
-          <dd>${placeEvents.length ? `${placeEvents.length} in ${state.year}` : "None listed"}</dd>
-        </div>
-        <div>
-          <dt>Event days</dt>
-          <dd>${eventDayCount}</dd>
-        </div>
-        <div>
-          <dt>Map</dt>
-          <dd>${hasValidCoordinates(place) ? "Location shown above" : "Location TBC"}</dd>
-        </div>
-      </dl>
+      <div class="location-detail-summary">
+        <span><strong>Type:</strong> ${place.type}</span>
+        <span><strong>Events:</strong> ${placeEvents.length}</span>
+        <span><strong>Days:</strong> ${eventDayCount}</span>
+        <span><strong>Map:</strong> ${hasValidCoordinates(place) ? "Shown above" : "TBC"}</span>
+      </div>
       <div class="location-modal-events">
         <h3>Events here</h3>
         ${renderPlaceEvents(placeEvents)}
@@ -1415,9 +1414,14 @@
   }
 
   function applyQuickFilter(filterName) {
+    state.filters.day = "all";
     state.filters.price = "all";
     state.filters.family = false;
     state.filters.category = "all";
+
+    if (filterName === "today") {
+      state.filters.day = todayFilterDate();
+    }
 
     if (filterName === "free") {
       state.filters.price = "free";
@@ -1447,10 +1451,12 @@
   }
 
   function inferQuickFilterState() {
-    if (state.filters.price === "free" && !state.filters.family && state.filters.category === "all") return "free";
-    if (state.filters.family && state.filters.price === "all" && state.filters.category === "all") return "family";
-    if (state.filters.category === "Music" && state.filters.price === "all" && !state.filters.family) return "music";
-    if (state.filters.category === "Kids" && state.filters.price === "all" && !state.filters.family) return "kids";
+    const noCategoryFilters = state.filters.price === "all" && !state.filters.family && state.filters.category === "all" && state.filters.location === "all";
+    if (state.filters.day !== "all" && state.filters.day === todayFilterDate() && noCategoryFilters) return "today";
+    if (state.filters.price === "free" && !state.filters.family && state.filters.category === "all" && state.filters.day === "all") return "free";
+    if (state.filters.family && state.filters.price === "all" && state.filters.category === "all" && state.filters.day === "all") return "family";
+    if (state.filters.category === "Music" && state.filters.price === "all" && !state.filters.family && state.filters.day === "all") return "music";
+    if (state.filters.category === "Kids" && state.filters.price === "all" && !state.filters.family && state.filters.day === "all") return "kids";
     return "all";
   }
 
@@ -1899,6 +1905,18 @@
       day: "numeric",
       year: "numeric"
     }).format(new Date(`${dateString}T12:00:00`));
+  }
+
+  function todayFilterDate() {
+    const yearEvents = currentYearEvents();
+    const dates = uniqueValues(yearEvents.map((event) => event.date)).sort();
+    const today = new Date().toISOString().slice(0, 10);
+    return dates.includes(today) ? today : dates[0] || "all";
+  }
+
+  function shortDayTime(event) {
+    const day = String(event.dayLabel || "").slice(0, 3) || formatDate(event.date).split(" ")[0];
+    return `${day} ${formatTimeRange(event)}`;
   }
 
   function eventLocationName(event) {
