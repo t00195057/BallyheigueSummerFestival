@@ -824,7 +824,7 @@ window.festivalEvents = [
     "title": "Bury the Barrel - Bring your own shovel - €50 Prize",
     "date": "2026-07-05",
     "dayLabel": "Sunday",
-    "startTime": "23:30",
+    "startTime": "11:30",
     "endTime": "00:30",
     "category": "Outdoor",
     "locationId": "ballyheigue-beach",

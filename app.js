@@ -622,30 +622,36 @@
 
     const relatedEvents = relatedEventsForEvent(event);
     const eventLocations = locationsForEvents(relatedEvents);
-    const durationHtml = event.hasExplicitEnd
-      ? `<p class="event-duration-note"><strong>Duration:</strong> ${formatDuration(event)}</p>`
-      : "";
-
     els.eventModalContent.innerHTML = `
       <p class="eyebrow">${event.category}</p>
       <h2 id="eventModalTitle">${event.title}</h2>
-      <dl class="event-modal-facts event-primary-facts">
+      <div class="event-detail-summary">
         <div>
-          <dt>When</dt>
-          <dd>${event.dayLabel}, ${formatDate(event.date)}<br>${formatTimeRange(event)}</dd>
+          <span>When</span>
+          <strong>${event.dayLabel}, ${formatDate(event.date)} | ${formatTimeRange(event)}</strong>
         </div>
         <div>
-          <dt>Where</dt>
-          <dd>${modalLocationLabel(relatedEvents)}</dd>
+          <span>Where</span>
+          <strong>${modalLocationLabel(relatedEvents)}</strong>
         </div>
         <div>
-          <dt>Cost</dt>
-          <dd>${eventCostLabel(event)}</dd>
+          <span>Cost</span>
+          <strong>${eventCostLabel(event)}</strong>
         </div>
-      </dl>
-      ${durationHtml}
+        ${event.hasExplicitEnd ? `
+          <div>
+            <span>Duration</span>
+            <strong>${formatDuration(event)}</strong>
+          </div>
+        ` : ""}
+        ${event.familyFriendly ? `
+          <div>
+            <span>Family</span>
+            <strong>Family friendly</strong>
+          </div>
+        ` : ""}
+      </div>
       <p>${event.description}</p>
-      ${event.familyFriendly ? `<span class="tag family">Family friendly</span>` : ""}
       <div class="event-actions event-action-groups">
         <div class="action-group action-group-primary">
           <button class="button primary" type="button" data-action="show-map" data-event-id="${event.id}" data-location-id="${event.locationId}">Show on map</button>
@@ -654,9 +660,6 @@
         <div class="action-group">
           <button class="button" type="button" data-action="share" data-event-id="${event.id}">Share</button>
           <button class="button" type="button" data-action="copy-link" data-event-id="${event.id}">Copy event link</button>
-        </div>
-        <div class="action-group">
-          <button class="button button-quiet" type="button" data-action="schedule-event" data-event-id="${event.id}">View in schedule</button>
         </div>
       </div>
     `;
@@ -907,9 +910,17 @@
       compact: true,
       customAttribution: '<a href="https://openmaptiles.org/" target="_blank" rel="noopener noreferrer">&copy; OpenMapTiles</a> <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">&copy; OpenStreetMap contributors</a>'
     }), "bottom-right");
+    setTimeout(collapseMapAttribution, 120);
 
     state.map.on("load", refreshMapMarkers);
+    state.map.once("idle", collapseMapAttribution);
     state.map.on("moveend", updateOutsideVillageIndicator);
+  }
+
+  function collapseMapAttribution() {
+    document
+      .querySelectorAll("#festivalMap .maplibregl-ctrl-attrib.maplibregl-compact-show")
+      .forEach((control) => control.classList.remove("maplibregl-compact-show"));
   }
 
   function refreshMapMarkers() {
@@ -944,37 +955,31 @@
         }
       });
 
-      state.map.addLayer({
-        id: "festival-point-icons",
-        type: "symbol",
-        source: "festival-points",
-        filter: ["!", ["match", ["get", "kind"], ["pub", "pub-food"], true, false]],
-        layout: {
-          "icon-image": ["get", "icon"],
-          "icon-allow-overlap": true,
-          "icon-ignore-placement": true,
-          "icon-anchor": "center",
-          "icon-size": ["interpolate", ["linear"], ["zoom"], 11, 0.68, 16, 0.92, 18, 1.08],
-          "icon-offset": ["get", "iconOffset"],
-          "symbol-sort-key": ["get", "sortKey"]
-        }
+      [
+        ["festival-point-other", 1],
+        ["festival-point-shops", 2],
+        ["festival-point-food", 3],
+        ["festival-point-event-locations", 4],
+        ["festival-point-pubs", 5]
+      ].forEach(([id, priority]) => {
+        state.map.addLayer({
+          id,
+          type: "symbol",
+          source: "festival-points",
+          filter: ["==", ["get", "layerPriority"], priority],
+          layout: {
+            "icon-image": ["get", "icon"],
+            "icon-allow-overlap": true,
+            "icon-ignore-placement": true,
+            "icon-anchor": "center",
+            "icon-size": ["interpolate", ["linear"], ["zoom"], 11, 0.68, 16, 0.92, 18, 1.08],
+            "icon-offset": ["get", "iconOffset"],
+            "symbol-sort-key": ["get", "sortKey"]
+          }
+        });
       });
 
-      state.map.addLayer({
-        id: "festival-point-pub-icons",
-        type: "symbol",
-        source: "festival-points",
-        filter: ["match", ["get", "kind"], ["pub", "pub-food"], true, false],
-        layout: {
-          "icon-image": ["get", "icon"],
-          "icon-allow-overlap": true,
-          "icon-ignore-placement": true,
-          "icon-anchor": "center",
-          "icon-size": ["interpolate", ["linear"], ["zoom"], 11, 0.68, 16, 0.92, 18, 1.08],
-          "icon-offset": ["get", "iconOffset"],
-          "symbol-sort-key": ["get", "sortKey"]
-        }
-      });
+      state.map.moveLayer("festival-point-active");
 
       state.map.on("click", handleMapCanvasClick);
       state.map.on("mousemove", handleMapCanvasMove);
@@ -1026,37 +1031,12 @@
       });
     });
 
-    return applyMarkerOffsets(places).map(({ place, options }) => mapPointFeature(place, options));
-  }
-
-  function applyMarkerOffsets(places) {
-    const buckets = new Map();
-    places.forEach((item) => {
-      const key = `${Number(item.place.lat).toFixed(3)}:${Number(item.place.lng).toFixed(3)}`;
-      buckets.set(key, [...(buckets.get(key) || []), item]);
-    });
-
-    buckets.forEach((items) => {
-      if (items.length === 1) {
-        items[0].options.iconOffset = [0, 0];
-        return;
-      }
-
-      const step = 28;
-      items
-        .sort((a, b) => markerSortKey(markerKind(b.place)) - markerSortKey(markerKind(a.place)))
-        .forEach((item, index) => {
-          const angle = (Math.PI * 2 * index) / items.length - Math.PI / 2;
-          const distance = step * (items.length > 4 ? 1.15 : 1);
-          item.options.iconOffset = [Math.round(Math.cos(angle) * distance), Math.round(Math.sin(angle) * distance)];
-        });
-    });
-
-    return places;
+    return places.map(({ place, options }) => mapPointFeature(place, options));
   }
 
   function mapPointFeature(place, options) {
     const kind = options.kind || markerKind(place);
+    const layerPriority = markerLayerPriority(place, options.pointType, kind);
     return {
       type: "Feature",
       geometry: {
@@ -1074,19 +1054,26 @@
         icon: `festival-icon-${kind}`,
         haloIcon: `festival-halo-${kind}`,
         sortKey: markerSortKey(kind),
-        iconOffset: options.iconOffset || [0, 0]
+        layerPriority,
+        iconOffset: [0, 0]
       }
     };
   }
 
   function mapPointLayers() {
-    return ["festival-point-pub-icons", "festival-point-icons"].filter((layerId) => state.map.getLayer(layerId));
+    return [
+      "festival-point-pubs",
+      "festival-point-event-locations",
+      "festival-point-food",
+      "festival-point-shops",
+      "festival-point-other"
+    ].filter((layerId) => state.map.getLayer(layerId));
   }
 
   function firstMapPointFeatureAt(point) {
     const features = state.map.queryRenderedFeatures(point, { layers: mapPointLayers() });
-    const pubFeature = features.find((feature) => ["pub", "pub-food"].includes(feature.properties?.kind));
-    return pubFeature || features[0];
+    return features
+      .sort((a, b) => Number(b.properties?.layerPriority || 0) - Number(a.properties?.layerPriority || 0))[0];
   }
 
   function handleMapCanvasClick(event) {
@@ -1222,21 +1209,23 @@
 
     els.mapOutsideHint.hidden = false;
     if (mapIsOutsideVillage) {
+      const centerPoint = mapCenter
+        ? { lat: mapCenter.lat, lng: mapCenter.lng }
+        : selectedLocation || { lat: 52.3894, lng: -9.835 };
+      const direction = directionBetweenPlaces(centerPoint, { lat: 52.3894, lng: -9.835 });
       state.mapOutsideMode = "back";
       els.mapOutsideHint.dataset.mode = "back";
-      els.mapOutsideHint.dataset.direction = "left";
-      els.mapOutsideHint.querySelector("span").textContent = "Back to Main Street";
+      els.mapOutsideHint.dataset.direction = direction;
+      els.mapOutsideHint.querySelector("span").textContent = `${arrowForDirection(direction)} Main Street`;
       return;
     }
 
-    const primary = outsideLocations[0];
-    const extra = outsideLocations.length - 1;
+    const primary = averagePlace(outsideLocations);
+    const direction = outsideVillageDirection(primary);
     state.mapOutsideMode = "hint";
     els.mapOutsideHint.dataset.mode = "hint";
-    els.mapOutsideHint.dataset.direction = outsideVillageDirection(primary);
-    els.mapOutsideHint.querySelector("span").textContent = extra > 0
-      ? `${outsideLocations.length} event locations this way`
-      : `${primary.name} this way`;
+    els.mapOutsideHint.dataset.direction = direction;
+    els.mapOutsideHint.querySelector("span").textContent = `${arrowForDirection(direction)} ${outsideLocations.length} location${outsideLocations.length === 1 ? "" : "s"}`;
   }
 
   function focusOutsideVillageLocations() {
@@ -1252,8 +1241,18 @@
     }
 
     if (!state.outsideVillageLocations.length) return;
-    const first = state.outsideVillageLocations[0];
-    focusLocation(first.id, { openPanel: true, scroll: false });
+    const bounds = new maplibregl.LngLatBounds();
+    state.outsideVillageLocations.forEach((location) => bounds.extend([location.lng, location.lat]));
+    state.selectedLocationId = null;
+    clearMapPointHover();
+    setActiveMapPoint("");
+    state.map.fitBounds(bounds, {
+      padding: { top: 72, right: 46, bottom: 46, left: 46 },
+      maxZoom: 15.9,
+      duration: 500,
+      essential: true
+    });
+    setTimeout(updateOutsideVillageIndicator, 600);
   }
 
   function isInsideVillageMap(place) {
@@ -1265,6 +1264,35 @@
     if (place.lng > -9.827) return "right";
     if (place.lat > 52.3915) return "top";
     return "bottom";
+  }
+
+  function averagePlace(places) {
+    const totals = places.reduce((sum, place) => ({
+      lat: sum.lat + place.lat,
+      lng: sum.lng + place.lng
+    }), { lat: 0, lng: 0 });
+    return {
+      lat: totals.lat / places.length,
+      lng: totals.lng / places.length
+    };
+  }
+
+  function directionBetweenPlaces(from, to) {
+    const lngDelta = to.lng - from.lng;
+    const latDelta = to.lat - from.lat;
+    if (Math.abs(lngDelta) >= Math.abs(latDelta)) {
+      return lngDelta < 0 ? "left" : "right";
+    }
+    return latDelta > 0 ? "top" : "bottom";
+  }
+
+  function arrowForDirection(direction) {
+    return {
+      left: "\u2190",
+      right: "\u2192",
+      top: "\u2191",
+      bottom: "\u2193"
+    }[direction] || "\u2192";
   }
 
   function focusLocation(locationId, options = {}) {
@@ -1829,6 +1857,14 @@
       beach: 35,
       event: 30
     }[kind] || 20;
+  }
+
+  function markerLayerPriority(place, pointType, kind) {
+    if (["pub", "pub-food"].includes(kind)) return 5;
+    if (pointType === "location") return 4;
+    if (kind === "food") return 3;
+    if (kind === "shop") return 2;
+    return 1;
   }
 
   function markerClassName(place, isFeature = false) {
