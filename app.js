@@ -23,7 +23,8 @@
       category: "all",
       location: "all",
       price: "all",
-      family: false
+      family: false,
+      now: false
     },
     map: null,
     markers: new Map(),
@@ -93,6 +94,7 @@
     bindEvents();
     renderMapKeyIcons();
     renderAll();
+    els.mapPanel.innerHTML = defaultMapPanelHtml();
     initMap();
     setTimeout(alignInitialHash, 120);
   }
@@ -488,6 +490,7 @@
         ? yearEvents.filter((event) => event.locationId === place.id)
         : [];
       const count = placeEvents.length;
+      const dayCount = new Set(placeEvents.map((event) => event.date)).size;
       const nextEvent = placeEvents[0];
       const nextEventHtml = nextEvent
         ? `<span class="location-next">Next: <strong>${nextEvent.title}</strong><small>${shortDayTime(nextEvent)}</small></span>`
@@ -500,7 +503,7 @@
               <strong>${place.name}</strong>
               ${nextEventHtml}
             </span>
-            <em>${count ? `${count} event${count === 1 ? "" : "s"}` : "Map only"}</em>
+            <em>${count ? `${count} event${count === 1 ? "" : "s"} · ${dayCount} day${dayCount === 1 ? "" : "s"}` : "Map only"}</em>
           </button>
         </article>
       `;
@@ -751,10 +754,6 @@
 
     if (validLocations.length > 1) {
       state.modalMap.fitBounds(bounds, { padding: 56, maxZoom: 16.2, duration: 0 });
-      const hint = document.createElement("div");
-      hint.className = "modal-map-location-hint";
-      hint.textContent = `${validLocations.length} locations shown`;
-      els.eventModalMap.appendChild(hint);
     }
 
     setTimeout(() => state.modalMap?.resize(), 80);
@@ -785,6 +784,7 @@
       if (state.filters.price === "free" && !isFree(event)) return false;
       if (state.filters.price === "paid" && isFree(event)) return false;
       if (state.filters.family && !event.familyFriendly) return false;
+      if (state.filters.now && !eventMatchesNowFilter(event)) return false;
       return true;
     });
   }
@@ -891,6 +891,7 @@
   function initMap() {
     if (!window.maplibregl) {
       els.mapPanel.innerHTML = `<h3>Map unavailable</h3><p>MapLibre could not load. The schedule and location cards still work.</p>`;
+      if (els.mapOutsideHint) els.mapOutsideHint.hidden = true;
       return;
     }
 
@@ -1156,6 +1157,21 @@
     `;
   }
 
+  function defaultMapPanelHtml() {
+    const yearEvents = currentYearEvents();
+    const venueIds = new Set(yearEvents.map((event) => event.locationId).filter(Boolean));
+    const dayCount = new Set(yearEvents.map((event) => event.date)).size;
+    return `
+      <h3>Explore the festival map</h3>
+      <p>Tap a marker to view events, venues, parking, food, toilets and more.</p>
+      <div class="map-panel-stats">
+        <span><strong>${venueIds.size}</strong> venues</span>
+        <span><strong>${yearEvents.length}</strong> events</span>
+        <span><strong>${dayCount}</strong> days</span>
+      </div>
+    `;
+  }
+
   function renderMapPanel(locationId) {
     const location = locationById.get(locationId);
     const locationEvents = currentYearEvents().filter((event) => event.locationId === locationId);
@@ -1188,30 +1204,16 @@
   }
 
   function updateOutsideVillageIndicator() {
-    if (!els.mapOutsideHint) return;
-    const yearEvents = currentYearEvents();
-    const outsideLocations = locations
-      .filter((location) => hasValidCoordinates(location))
-      .filter((location) => !isInsideVillageMap(location))
-      .filter((location) => yearEvents.some((event) => event.locationId === location.id))
-      .filter((location) => placeMatchesLocationFilter({ ...location, kind: "location" }, yearEvents));
+    if (!els.mapOutsideHint || !state.map) return;
+    const mapCenter = state.map.getCenter();
+    const centerPoint = { lat: mapCenter.lat, lng: mapCenter.lng };
+    const outsideLocations = relevantMapLocations().filter((location) => !locationIsVisible(location));
+    const shouldReturnToMainStreet = mainStreetNeedsReturn();
 
     state.outsideVillageLocations = outsideLocations;
-    if (!outsideLocations.length) {
-      els.mapOutsideHint.hidden = true;
-      return;
-    }
-
-    const selectedLocation = locationById.get(state.selectedLocationId);
-    const mapCenter = state.map?.getCenter?.();
-    const mapIsOutsideVillage = selectedLocation && !isInsideVillageMap(selectedLocation)
-      || mapCenter && !isInsideVillageMap({ lat: mapCenter.lat, lng: mapCenter.lng });
 
     els.mapOutsideHint.hidden = false;
-    if (mapIsOutsideVillage) {
-      const centerPoint = mapCenter
-        ? { lat: mapCenter.lat, lng: mapCenter.lng }
-        : selectedLocation || { lat: 52.3894, lng: -9.835 };
+    if (shouldReturnToMainStreet) {
       const direction = directionBetweenPlaces(centerPoint, { lat: 52.3894, lng: -9.835 });
       state.mapOutsideMode = "back";
       els.mapOutsideHint.dataset.mode = "back";
@@ -1220,8 +1222,13 @@
       return;
     }
 
+    if (!outsideLocations.length) {
+      els.mapOutsideHint.hidden = true;
+      return;
+    }
+
     const primary = averagePlace(outsideLocations);
-    const direction = outsideVillageDirection(primary);
+    const direction = directionBetweenPlaces(centerPoint, primary);
     state.mapOutsideMode = "hint";
     els.mapOutsideHint.dataset.mode = "hint";
     els.mapOutsideHint.dataset.direction = direction;
@@ -1235,7 +1242,8 @@
       state.map.once("moveend", updateOutsideVillageIndicator);
       state.map.flyTo({ center: [-9.835, 52.3894], zoom: 15.65, duration: 500, essential: true });
       setActiveMapPoint("");
-      els.mapPanel.innerHTML = `<h3>Choose a location</h3><p>Select a marker or use "Show on map" from an event card.</p>`;
+      clearMapPointHover();
+      els.mapPanel.innerHTML = defaultMapPanelHtml();
       setTimeout(updateOutsideVillageIndicator, 650);
       return;
     }
@@ -1264,6 +1272,30 @@
     if (place.lng > -9.827) return "right";
     if (place.lat > 52.3915) return "top";
     return "bottom";
+  }
+
+  function relevantMapLocations() {
+    const yearEvents = currentYearEvents();
+    return locations
+      .filter((location) => hasValidCoordinates(location))
+      .filter((location) => yearEvents.some((event) => event.locationId === location.id))
+      .filter((location) => placeMatchesLocationFilter({ ...location, kind: "location" }, yearEvents));
+  }
+
+  function locationIsVisible(location) {
+    const bounds = state.map?.getBounds?.();
+    return Boolean(bounds?.contains?.([location.lng, location.lat]));
+  }
+
+  function mainStreetNeedsReturn() {
+    if (!state.map) return false;
+    if (state.map.getZoom() < 14.95) return true;
+    const mapElement = state.map.getContainer();
+    const villagePixel = state.map.project([-9.835, 52.3894]);
+    const centerX = mapElement.clientWidth / 2;
+    const centerY = mapElement.clientHeight / 2;
+    const distance = Math.hypot(villagePixel.x - centerX, villagePixel.y - centerY);
+    return distance > Math.min(105, Math.max(62, mapElement.clientWidth * 0.22));
   }
 
   function averagePlace(places) {
@@ -1340,9 +1372,11 @@
     state.map.resize();
     const bounds = new maplibregl.LngLatBounds();
     eventLocations.forEach((location) => bounds.extend([location.lng, location.lat]));
-    state.map.fitBounds(bounds, { padding: 80, maxZoom: 16.2, essential: true });
+    state.map.fitBounds(bounds, { padding: { top: 72, right: 48, bottom: 48, left: 48 }, maxZoom: 16.2, essential: true });
     renderMultiLocationMapPanel(event, eventLocations);
     setActiveMapPoint("");
+    clearMapPointHover();
+    setTimeout(updateOutsideVillageIndicator, 650);
 
     if (options.scroll) {
       document.querySelector("#explorer").scrollIntoView({ behavior: "smooth" });
@@ -1428,7 +1462,8 @@
       category: "all",
       location: "all",
       price: "all",
-      family: false
+      family: false,
+      now: false
     };
     state.locationDirectoryFilter = "all";
     syncFilterInputs();
@@ -1446,9 +1481,17 @@
     state.filters.price = "all";
     state.filters.family = false;
     state.filters.category = "all";
+    state.filters.now = false;
 
     if (filterName === "today") {
       state.filters.day = todayFilterDate();
+    }
+
+    if (filterName === "now") {
+      state.filters.now = true;
+      if (!isWithinFestivalDates(new Date())) {
+        state.filters.day = todayFilterDate();
+      }
     }
 
     if (filterName === "free") {
@@ -1480,7 +1523,8 @@
 
   function inferQuickFilterState() {
     const noCategoryFilters = state.filters.price === "all" && !state.filters.family && state.filters.category === "all" && state.filters.location === "all";
-    if (state.filters.day !== "all" && state.filters.day === todayFilterDate() && noCategoryFilters) return "today";
+    if (!state.filters.now && state.filters.day !== "all" && state.filters.day === todayFilterDate() && noCategoryFilters) return "today";
+    if (state.filters.now && state.filters.price === "all" && !state.filters.family && state.filters.category === "all" && state.filters.location === "all") return "now";
     if (state.filters.price === "free" && !state.filters.family && state.filters.category === "all" && state.filters.day === "all") return "free";
     if (state.filters.family && state.filters.price === "all" && state.filters.category === "all" && state.filters.day === "all") return "family";
     if (state.filters.category === "Music" && state.filters.price === "all" && !state.filters.family && state.filters.day === "all") return "music";
@@ -1505,6 +1549,7 @@
       || state.filters.location !== "all"
       || state.filters.price !== "all"
       || state.filters.family
+      || state.filters.now
       || state.locationDirectoryFilter !== "all";
   }
 
@@ -1921,6 +1966,9 @@
   }
 
   function eventEnd(event) {
+    if (!event.endTime) {
+      return new Date(eventStart(event).getTime() + 60 * 60 * 1000);
+    }
     return new Date(`${event.date}T${event.endTime}:00`);
   }
 
@@ -1948,6 +1996,23 @@
     const dates = uniqueValues(yearEvents.map((event) => event.date)).sort();
     const today = new Date().toISOString().slice(0, 10);
     return dates.includes(today) ? today : dates[0] || "all";
+  }
+
+  function isWithinFestivalDates(date) {
+    const yearEvents = currentYearEvents();
+    const dates = uniqueValues(yearEvents.map((event) => event.date)).sort();
+    if (!dates.length) return false;
+    const day = date.toISOString().slice(0, 10);
+    return day >= dates[0] && day <= dates[dates.length - 1];
+  }
+
+  function eventMatchesNowFilter(event) {
+    const now = new Date();
+    if (!isWithinFestivalDates(now)) {
+      return event.date === todayFilterDate();
+    }
+    const soon = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+    return eventEnd(event) >= now && eventStart(event) <= soon;
   }
 
   function shortDayTime(event) {

@@ -4,9 +4,12 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Ballyheigue Summer Festival explorer with events, locations, maps and year archives.">
+    <meta name="theme-color" content="#f58220">
     <title>Ballyheigue Summer Festival</title>
-    <link rel="icon" href="icon.svg" type="image/svg+xml">
-    <link rel="apple-touch-icon" href="icon.svg">
+    <link rel="icon" href="icons/favicon-16.png" type="image/png" sizes="16x16">
+    <link rel="icon" href="icons/favicon-32.png" type="image/png" sizes="32x32">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="manifest" href="manifest.webmanifest">
     <link rel="preconnect" href="https://tiles.openfreemap.org">
     <link rel="stylesheet" href="vendor/maplibre-gl.css">
     <link rel="stylesheet" href="style.css">
@@ -14,7 +17,7 @@
   <body>
     <header class="site-header" id="top">
       <a class="brand" href="#home" aria-label="Ballyheigue Summer Festival home">
-        <span class="brand-mark" aria-hidden="true">BSF</span>
+        <img class="brand-mark" src="icons/icon-192.png" alt="" aria-hidden="true" width="36" height="36">
         <span>Ballyheigue Summer Festival</span>
       </a>
       <nav class="nav-links" aria-label="Main navigation">
@@ -88,6 +91,7 @@
         <div class="quick-filter-list" aria-label="Quick filters">
           <button class="quick-filter is-active" type="button" data-quick-filter="all">All</button>
           <button class="quick-filter" type="button" data-quick-filter="today">Today</button>
+          <button class="quick-filter" type="button" data-quick-filter="now">Now</button>
           <button class="quick-filter" type="button" data-quick-filter="free">Free</button>
           <button class="quick-filter" type="button" data-quick-filter="family">Family</button>
           <button class="quick-filter" type="button" data-quick-filter="music">Music</button>
@@ -136,8 +140,8 @@
           <div id="festivalMap" aria-label="Interactive Ballyheigue festival map"></div>
           <button class="map-outside-hint" id="mapOutsideHint" type="button" hidden><span>More events this way</span></button>
           <aside class="map-panel" id="mapPanel" aria-live="polite">
-            <h3>Choose a location</h3>
-            <p>Select a marker or use "Show on map" from an event card.</p>
+            <h3>Explore the festival map</h3>
+            <p>Tap a marker to view events, venues, parking, food, toilets and more.</p>
           </aside>
         </div>
       </section>

@@ -1,5 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="BSF">
-  <rect width="64" height="64" fill="#f58220"/>
-  <circle cx="32" cy="32" r="32" fill="#080808"/>
-  <text x="32" y="39" fill="#f58220" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="900" text-anchor="middle">BSF</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Ballyheigue Summer Festival">
+  <rect width="512" height="512" rx="96" fill="#f58220"/>
+  <circle cx="256" cy="256" r="214" fill="#080808"/>
+  <circle cx="304" cy="192" r="96" fill="#f58220"/>
+  <path d="M95 319c50-32 86 31 138 0s90 31 144 0 85 8 109 25v54H95z" fill="#25b9c9"/>
+  <path d="M95 345c50-31 86 31 138 0s90 31 144 0c43-25 72-3 109 19" fill="none" stroke="#fff1ce" stroke-width="22" stroke-linecap="round"/>
+  <text x="256" y="252" fill="#f58220" font-family="Arial, Helvetica, sans-serif" font-size="118" font-weight="900" text-anchor="middle" letter-spacing="-8">BSF</text>
 </svg>

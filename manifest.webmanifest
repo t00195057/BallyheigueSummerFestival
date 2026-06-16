@@ -1,0 +1,21 @@
+{
+  "name": "Ballyheigue Summer Festival",
+  "short_name": "BSF",
+  "description": "Ballyheigue Summer Festival schedule, map and venue explorer.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#fff1ce",
+  "theme_color": "#f58220",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
