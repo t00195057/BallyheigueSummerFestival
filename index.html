@@ -77,6 +77,7 @@
           <div class="hero-controls date-card" aria-label="Festival dates">
             <span>2026 Festival Dates</span>
             <p class="festival-dates" id="festivalDates">Loading festival dates...</p>
+            <div class="festival-status" id="festivalStatus">Checking festival status...</div>
           </div>
 
         </div>
@@ -91,7 +92,6 @@
         <div class="quick-filter-list" aria-label="Quick filters">
           <button class="quick-filter is-active" type="button" data-quick-filter="all">All</button>
           <button class="quick-filter" type="button" data-quick-filter="today">Today</button>
-          <button class="quick-filter" type="button" data-quick-filter="now">Now</button>
           <button class="quick-filter" type="button" data-quick-filter="free">Free</button>
           <button class="quick-filter" type="button" data-quick-filter="family">Family</button>
           <button class="quick-filter" type="button" data-quick-filter="music">Music</button>
@@ -138,7 +138,9 @@
           </aside>
           <button class="map-key-toggle" id="mapKeyToggle" type="button" aria-expanded="false" aria-controls="mapKey" aria-label="Open map key">?</button>
           <div id="festivalMap" aria-label="Interactive Ballyheigue festival map"></div>
-          <button class="map-outside-hint" id="mapOutsideHint" type="button" hidden><span>More events this way</span></button>
+          <button class="map-return-hint" id="mapBackHint" type="button" hidden><span>← Main Street</span></button>
+          <button class="map-edge-hint map-edge-hint-left" id="mapLeftHint" type="button" hidden><span>← 0 locations</span></button>
+          <button class="map-edge-hint map-edge-hint-right" id="mapRightHint" type="button" hidden><span>0 locations →</span></button>
           <aside class="map-panel" id="mapPanel" aria-live="polite">
             <h3>Explore the festival map</h3>
             <p>Tap a marker to view events, venues, parking, food, toilets and more.</p>

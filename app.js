@@ -24,7 +24,7 @@
       location: "all",
       price: "all",
       family: false,
-      now: false
+      today: false
     },
     map: null,
     markers: new Map(),
@@ -40,6 +40,7 @@
 
   const els = {
     festivalDates: document.querySelector("#festivalDates"),
+    festivalStatus: document.querySelector("#festivalStatus"),
     searchInput: document.querySelector("#searchInput"),
     searchToggle: document.querySelector("#searchToggle"),
     searchPanel: document.querySelector("#siteSearch"),
@@ -94,6 +95,7 @@
     bindEvents();
     renderMapKeyIcons();
     renderAll();
+    window.setInterval(renderHome, 1000);
     els.mapPanel.innerHTML = defaultMapPanelHtml();
     initMap();
     setTimeout(alignInitialHash, 120);
@@ -327,6 +329,7 @@
 
   function updateSelectFilter(name) {
     return (event) => {
+      state.filters.today = false;
       state.filters[name] = event.target.value;
       updateQuickFilterState(inferQuickFilterState());
       updateFilterClearState();
@@ -377,6 +380,9 @@
     els.festivalDates.textContent = start && end
       ? `${formatDate(start)} to ${formatDate(end)}`
       : "Dates to be announced";
+    if (els.festivalStatus) {
+      els.festivalStatus.innerHTML = festivalStatusHtml(yearEvents);
+    }
   }
 
   function renderNow() {
@@ -784,7 +790,7 @@
       if (state.filters.price === "free" && !isFree(event)) return false;
       if (state.filters.price === "paid" && isFree(event)) return false;
       if (state.filters.family && !event.familyFriendly) return false;
-      if (state.filters.now && !eventMatchesNowFilter(event)) return false;
+      if (state.filters.today && event.date !== todayFilterDate()) return false;
       return true;
     });
   }
@@ -1463,7 +1469,7 @@
       location: "all",
       price: "all",
       family: false,
-      now: false
+      today: false
     };
     state.locationDirectoryFilter = "all";
     syncFilterInputs();
@@ -1481,17 +1487,10 @@
     state.filters.price = "all";
     state.filters.family = false;
     state.filters.category = "all";
-    state.filters.now = false;
+    state.filters.today = false;
 
     if (filterName === "today") {
-      state.filters.day = todayFilterDate();
-    }
-
-    if (filterName === "now") {
-      state.filters.now = true;
-      if (!isWithinFestivalDates(new Date())) {
-        state.filters.day = todayFilterDate();
-      }
+      state.filters.today = true;
     }
 
     if (filterName === "free") {
@@ -1523,8 +1522,7 @@
 
   function inferQuickFilterState() {
     const noCategoryFilters = state.filters.price === "all" && !state.filters.family && state.filters.category === "all" && state.filters.location === "all";
-    if (!state.filters.now && state.filters.day !== "all" && state.filters.day === todayFilterDate() && noCategoryFilters) return "today";
-    if (state.filters.now && state.filters.price === "all" && !state.filters.family && state.filters.category === "all" && state.filters.location === "all") return "now";
+    if (state.filters.today && state.filters.day === "all" && noCategoryFilters) return "today";
     if (state.filters.price === "free" && !state.filters.family && state.filters.category === "all" && state.filters.day === "all") return "free";
     if (state.filters.family && state.filters.price === "all" && state.filters.category === "all" && state.filters.day === "all") return "family";
     if (state.filters.category === "Music" && state.filters.price === "all" && !state.filters.family && state.filters.day === "all") return "music";
@@ -1549,7 +1547,7 @@
       || state.filters.location !== "all"
       || state.filters.price !== "all"
       || state.filters.family
-      || state.filters.now
+      || state.filters.today
       || state.locationDirectoryFilter !== "all";
   }
 
@@ -1980,7 +1978,82 @@
 
   function isTodayForSelectedYear(date) {
     const today = new Date();
-    return today.getFullYear() === state.year && date === today.toISOString().slice(0, 10);
+    return today.getFullYear() === state.year && date === localDateKey(today);
+  }
+
+  function festivalStatusHtml(yearEvents) {
+    const statusEvents = yearEvents.filter(isCountdownEvent);
+    if (!statusEvents.length) {
+      return `<span class="status-empty">Festival schedule coming soon</span>`;
+    }
+
+    const now = new Date();
+    const firstEvent = statusEvents[0];
+    const nextEvent = statusEvents.find((event) => eventStart(event) >= now);
+
+    if (!nextEvent) {
+      return `<span class="status-empty">Thanks for joining us in 2026</span>`;
+    }
+
+    const hasStarted = eventStart(firstEvent) <= now;
+    const label = hasStarted ? "Next event in" : "Starts in";
+
+    return `
+      <div class="status-countdown">
+        <span class="status-countdown-label">${label}</span>
+        <div class="countdown-tiles" aria-label="${escapeHtml(label)} ${countdownText(eventStart(nextEvent), now)}">
+          ${countdownUnits(eventStart(nextEvent), now).map((unit) => `
+            <span class="countdown-tile">
+              <strong>${unit.value}</strong>
+              <em>${unit.label}</em>
+            </span>
+          `).join("")}
+        </div>
+      </div>
+      <div class="status-next-event">
+        <span>${hasStarted ? "Coming up" : "First event"}</span>
+        <strong>${escapeHtml(nextEvent.title)}</strong>
+        <em>${escapeHtml(formatDate(nextEvent.date))} · ${escapeHtml(formatTimeRange(nextEvent))} · ${escapeHtml(eventLocationName(nextEvent))}</em>
+      </div>
+    `;
+  }
+
+  function isCountdownEvent(event) {
+    return String(event.title || "").trim().toLowerCase() !== "sauna on the beach";
+  }
+
+  function countdownUnits(target, now) {
+    const totalSeconds = Math.max(0, Math.floor((target - now) / 1000));
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    return [
+      { value: String(days), label: "days" },
+      { value: padTime(hours), label: "hrs" },
+      { value: padTime(minutes), label: "min" },
+      { value: padTime(seconds), label: "sec" }
+    ];
+  }
+
+  function countdownText(target, now) {
+    return countdownUnits(target, now)
+      .map((unit) => `${unit.value} ${unit.label}`)
+      .join(", ");
+  }
+
+  function padTime(value) {
+    return String(value).padStart(2, "0");
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
   }
 
   function formatDate(dateString) {
@@ -1992,17 +2065,21 @@
   }
 
   function todayFilterDate() {
-    const yearEvents = currentYearEvents();
-    const dates = uniqueValues(yearEvents.map((event) => event.date)).sort();
-    const today = new Date().toISOString().slice(0, 10);
-    return dates.includes(today) ? today : dates[0] || "all";
+    return localDateKey(new Date());
+  }
+
+  function localDateKey(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   }
 
   function isWithinFestivalDates(date) {
     const yearEvents = currentYearEvents();
     const dates = uniqueValues(yearEvents.map((event) => event.date)).sort();
     if (!dates.length) return false;
-    const day = date.toISOString().slice(0, 10);
+    const day = localDateKey(date);
     return day >= dates[0] && day <= dates[dates.length - 1];
   }
 

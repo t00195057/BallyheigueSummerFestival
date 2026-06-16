@@ -289,6 +289,108 @@ input[type="search"]:focus-visible {
   margin: 0;
 }
 
+.festival-status {
+  background: var(--cream);
+  border: 2px solid var(--ink);
+  border-radius: calc(var(--radius) + 2px);
+  color: var(--ink);
+  display: grid;
+  gap: 0;
+  margin: 0.18rem 0 0;
+  overflow: hidden;
+  width: 100%;
+}
+
+.status-countdown {
+  background: linear-gradient(180deg, var(--orange) 0%, var(--orange-deep) 100%);
+  color: var(--ink);
+  display: grid;
+  gap: 0.36rem;
+  padding: 0.52rem 0.48rem 0.58rem;
+}
+
+.status-countdown-label,
+.status-next-event span,
+.status-empty {
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.status-countdown-label {
+  color: var(--ink);
+}
+
+.countdown-tiles {
+  display: grid;
+  gap: 0.22rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.countdown-tile {
+  align-items: center;
+  background: var(--cream);
+  border: 2px solid var(--ink);
+  border-radius: 0.56rem;
+  box-shadow: 0 2px 0 var(--ink);
+  display: grid;
+  gap: 0.06rem;
+  min-width: 0;
+  padding: 0.32rem 0.1rem 0.28rem;
+  text-align: center;
+}
+
+.countdown-tile strong {
+  color: var(--ink);
+  font-family: "Trebuchet MS", Arial, Helvetica, sans-serif;
+  font-size: clamp(1.22rem, 7vw, 1.95rem);
+  font-weight: 700;
+  line-height: 0.95;
+}
+
+.countdown-tile em {
+  color: var(--muted);
+  font-style: normal;
+  font-size: clamp(0.55rem, 2.1vw, 0.68rem);
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.status-next-event {
+  background: var(--white);
+  display: grid;
+  gap: 0.14rem;
+  padding: 0.56rem 0.62rem 0.64rem;
+}
+
+.status-next-event span {
+  color: var(--orange-deep);
+}
+
+.status-next-event strong {
+  color: var(--ink);
+  font-size: 0.98rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.status-next-event em {
+  color: var(--brown);
+  font-style: normal;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.status-empty {
+  background: var(--white);
+  color: var(--ink);
+  padding: 0.65rem;
+}
+
 .quick-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1761,6 +1863,13 @@ input[type="search"]:focus-visible {
     min-height: 38svh;
     padding-top: 1.55rem;
     padding-bottom: 0.85rem;
+  }
+
+  .hero-content,
+  .hero-controls,
+  .festival-status {
+    max-width: 100%;
+    min-width: 0;
   }
 
   h1 {
