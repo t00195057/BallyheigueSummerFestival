@@ -2267,3 +2267,75 @@ input[type="search"]:focus-visible {
   color: var(--orange-deep);
 }
 
+
+
+/* Multi-category/final map polish overrides */
+.quick-filter-list {
+  justify-content: flex-start;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: min(100%, 860px);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding: 0 0.35rem 0.35rem;
+  scrollbar-width: thin;
+  width: 100%;
+}
+
+.quick-filter-list::after {
+  content: "";
+  flex: 0 0 0.1rem;
+}
+
+.quick-filter {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.map-return-hint,
+.map-edge-hint {
+  align-items: center;
+  background: rgba(255, 244, 214, 0.96);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.18);
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.74rem;
+  font-weight: 700;
+  left: 0.65rem;
+  max-width: min(9rem, calc(100% - 1rem));
+  padding: 0.28rem 0.5rem;
+  position: absolute;
+  top: 5.25rem;
+  z-index: 6;
+}
+
+.map-return-hint[hidden],
+.map-edge-hint[hidden] {
+  display: none;
+}
+
+.map-edge-hint {
+  display: none !important;
+}
+
+#festivalMap .maplibregl-popup {
+  z-index: 12;
+}
+
+@media (max-width: 520px) {
+  .quick-filter-list {
+    gap: 0.35rem;
+    padding-left: 0.4rem;
+    padding-right: 0.4rem;
+  }
+
+  .map-return-hint {
+    font-size: 0.68rem;
+    left: 0.55rem;
+    max-width: 8.8rem;
+    top: 5rem;
+  }
+}

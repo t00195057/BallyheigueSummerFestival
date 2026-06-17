@@ -68,7 +68,9 @@
     tabPanels: [...document.querySelectorAll("[data-tab-panel]")],
     quickFilterList: document.querySelector(".quick-filter-list"),
     explorerLocationFilters: document.querySelector(".explorer-location-filters"),
-    mapOutsideHint: document.querySelector("#mapOutsideHint"),
+    mapBackHint: document.querySelector("#mapBackHint"),
+    mapLeftHint: document.querySelector("#mapLeftHint"),
+    mapRightHint: document.querySelector("#mapRightHint"),
     quickFilters: [...document.querySelectorAll("[data-quick-filter]")],
     locationFilters: [...document.querySelectorAll("[data-location-directory-filter]")]
   };
@@ -230,15 +232,17 @@
       showHero();
     });
 
-    els.quickFilters.forEach((button) => {
-      button.addEventListener("click", () => applyQuickFilter(button.dataset.quickFilter));
+    els.quickFilterList?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-quick-filter]");
+      if (!button) return;
+      applyQuickFilter(button.dataset.quickFilter);
     });
 
     els.locationFilters.forEach((button) => {
       button.addEventListener("click", () => applyLocationDirectoryFilter(button.dataset.locationDirectoryFilter));
     });
 
-    els.mapOutsideHint?.addEventListener("click", focusOutsideVillageLocations);
+    els.mapBackHint?.addEventListener("click", backToMainStreet);
 
     window.addEventListener("hashchange", focusEventFromHash);
     document.addEventListener("keydown", (event) => {
@@ -370,7 +374,22 @@
       ...usedLocations.map((location) => `<option value="${location.id}">${location.name}</option>`)
     ].join("");
 
+    renderQuickFilters(yearEvents);
     syncFilterInputs();
+  }
+
+  function renderQuickFilters(yearEvents) {
+    if (!els.quickFilterList) return;
+    const baseFilters = [
+      ["all", "All"],
+      ["today", "Today"],
+      ["free", "Free"],
+      ["family", "Family"]
+    ];
+    const categoryFilters = categoryFilterOptions(yearEvents).map((category) => [`category:${category}`, category]);
+    els.quickFilterList.innerHTML = [...baseFilters, ...categoryFilters]
+      .map(([value, label]) => `<button class="quick-filter${value === "all" ? " is-active" : ""}" type="button" data-quick-filter="${escapeAttribute(value)}">${label}</button>`)
+      .join("");
   }
 
   function renderHome() {
@@ -475,7 +494,7 @@
               <span>${event.title}</span>
             </span>
             ${priceLabel}
-            <span class="event-summary-meta">${event.category} | ${scheduleDisplayLocationName(event)}</span>
+            <span class="event-summary-meta">${categoriesDisplay(event)} | ${scheduleDisplayLocationName(event)}</span>
           </button>
         </div>
       </article>
@@ -632,7 +651,7 @@
     const relatedEvents = relatedEventsForEvent(event);
     const eventLocations = locationsForEvents(relatedEvents);
     els.eventModalContent.innerHTML = `
-      <p class="eyebrow">${event.category}</p>
+      <p class="eyebrow">${categoriesDisplay(event)}</p>
       <h2 id="eventModalTitle">${event.title}</h2>
       <div class="event-detail-summary">
         <div>
@@ -782,7 +801,7 @@
 
   function getFilteredEvents() {
     return currentYearEvents().filter((event) => {
-      const haystack = `${event.title} ${event.description} ${event.category} ${eventLocationName(event)} ${event.scheduleLocationLabel || ""}`.toLowerCase();
+      const haystack = `${event.title} ${event.description} ${categoriesDisplay(event)} ${eventLocationName(event)} ${event.scheduleLocationLabel || ""}`.toLowerCase();
       if (state.filters.search && !haystack.includes(state.filters.search)) return false;
       if (state.filters.day !== "all" && event.date !== state.filters.day) return false;
       if (state.filters.category !== "all" && !eventMatchesCategory(event, state.filters.category)) return false;
@@ -796,19 +815,20 @@
   }
 
   function categoryFilterOptions(yearEvents) {
-    const usedCategories = new Set(yearEvents.map((event) => event.category));
-    return categories.filter((category) => category === "Nightlife" || usedCategories.has(category));
+    const usedCategories = new Set(yearEvents.flatMap(eventCategories));
+    return categories.filter((category) => usedCategories.has(category));
   }
 
   function categoryLabel(category) {
     const labels = {
-      Community: "Community events",
+      Charity: "Charity",
+      Community: "Community",
       Competition: "Competitions",
       Culture: "History & culture",
-      Food: "Food events",
-      Kids: "Kids events",
+      Food: "Food",
+      Kids: "Kids",
       Music: "Music",
-      Nightlife: "Evening / Nightlife (after 5pm)",
+      Nightlife: "Nightlife / pubs",
       Outdoor: "Beach & outdoor",
       Sport: "Sport & fitness",
       Wellness: "Wellness"
@@ -816,10 +836,28 @@
     return labels[category] || category;
   }
 
+  function eventCategories(event) {
+    const categoryText = String(event.category || "");
+    const categoryLookup = new Map(categories.map((category) => [category.toLowerCase(), category]));
+    return uniqueValues(categoryText
+      .split(",")
+      .map((category) => category.trim())
+      .filter(Boolean)
+      .map((category) => categoryLookup.get(category.toLowerCase()) || titleCase(category)));
+  }
+
+  function categoriesDisplay(event) {
+    return eventCategories(event).join(", ") || "Community";
+  }
+
+  function titleCase(value) {
+    return String(value || "")
+      .toLowerCase()
+      .replace(/\w/g, (letter) => letter.toUpperCase());
+  }
+
   function eventMatchesCategory(event, category) {
-    if (category === "Nightlife") return isEveningEvent(event);
-    if (category === "Sport") return ["Sport", "Fitness"].includes(event.category);
-    return event.category === category;
+    return eventCategories(event).some((eventCategory) => eventCategory.toLowerCase() === String(category).toLowerCase());
   }
 
   function isEveningEvent(event) {
@@ -894,10 +932,14 @@
     return [...new Set(values.filter(Boolean))];
   }
 
+  function escapeAttribute(value) {
+    return String(value || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
   function initMap() {
     if (!window.maplibregl) {
       els.mapPanel.innerHTML = `<h3>Map unavailable</h3><p>MapLibre could not load. The schedule and location cards still work.</p>`;
-      if (els.mapOutsideHint) els.mapOutsideHint.hidden = true;
+      if (els.mapBackHint) els.mapBackHint.hidden = true;
       return;
     }
 
@@ -1199,7 +1241,7 @@
                     <button type="button" data-action="event-focus" data-event-id="${event.id}">${event.title}</button>
                     ${eventPriceBadge(event)}
                   </div>
-                  <div>${formatTimeRange(event)} | ${event.category}</div>
+                  <div>${formatTimeRange(event)} | ${categoriesDisplay(event)}</div>
                 </div>
               `).join("")}
             </div>
@@ -1210,63 +1252,31 @@
   }
 
   function updateOutsideVillageIndicator() {
-    if (!els.mapOutsideHint || !state.map) return;
+    if (!els.mapBackHint || !state.map) return;
     const mapCenter = state.map.getCenter();
     const centerPoint = { lat: mapCenter.lat, lng: mapCenter.lng };
-    const outsideLocations = relevantMapLocations().filter((location) => !locationIsVisible(location));
     const shouldReturnToMainStreet = mainStreetNeedsReturn();
 
-    state.outsideVillageLocations = outsideLocations;
+    els.mapBackHint.hidden = !shouldReturnToMainStreet;
+    els.mapLeftHint && (els.mapLeftHint.hidden = true);
+    els.mapRightHint && (els.mapRightHint.hidden = true);
 
-    els.mapOutsideHint.hidden = false;
     if (shouldReturnToMainStreet) {
       const direction = directionBetweenPlaces(centerPoint, { lat: 52.3894, lng: -9.835 });
-      state.mapOutsideMode = "back";
-      els.mapOutsideHint.dataset.mode = "back";
-      els.mapOutsideHint.dataset.direction = direction;
-      els.mapOutsideHint.querySelector("span").textContent = `${arrowForDirection(direction)} Main Street`;
-      return;
+      els.mapBackHint.dataset.direction = direction;
+      els.mapBackHint.querySelector("span").textContent = `${arrowForDirection(direction)} Main Street`;
     }
-
-    if (!outsideLocations.length) {
-      els.mapOutsideHint.hidden = true;
-      return;
-    }
-
-    const primary = averagePlace(outsideLocations);
-    const direction = directionBetweenPlaces(centerPoint, primary);
-    state.mapOutsideMode = "hint";
-    els.mapOutsideHint.dataset.mode = "hint";
-    els.mapOutsideHint.dataset.direction = direction;
-    els.mapOutsideHint.querySelector("span").textContent = `${arrowForDirection(direction)} ${outsideLocations.length} location${outsideLocations.length === 1 ? "" : "s"}`;
   }
 
-  function focusOutsideVillageLocations() {
+  function backToMainStreet() {
     if (!state.map) return;
-    if (state.mapOutsideMode === "back") {
-      state.selectedLocationId = null;
-      state.map.once("moveend", updateOutsideVillageIndicator);
-      state.map.flyTo({ center: [-9.835, 52.3894], zoom: 15.65, duration: 500, essential: true });
-      setActiveMapPoint("");
-      clearMapPointHover();
-      els.mapPanel.innerHTML = defaultMapPanelHtml();
-      setTimeout(updateOutsideVillageIndicator, 650);
-      return;
-    }
-
-    if (!state.outsideVillageLocations.length) return;
-    const bounds = new maplibregl.LngLatBounds();
-    state.outsideVillageLocations.forEach((location) => bounds.extend([location.lng, location.lat]));
     state.selectedLocationId = null;
-    clearMapPointHover();
+    state.map.once("moveend", updateOutsideVillageIndicator);
+    state.map.flyTo({ center: [-9.835, 52.3894], zoom: 15.65, duration: 500, essential: true });
     setActiveMapPoint("");
-    state.map.fitBounds(bounds, {
-      padding: { top: 72, right: 46, bottom: 46, left: 46 },
-      maxZoom: 15.9,
-      duration: 500,
-      essential: true
-    });
-    setTimeout(updateOutsideVillageIndicator, 600);
+    clearMapPointHover();
+    els.mapPanel.innerHTML = defaultMapPanelHtml();
+    setTimeout(updateOutsideVillageIndicator, 650);
   }
 
   function isInsideVillageMap(place) {
@@ -1392,7 +1402,7 @@
   function renderMultiLocationMapPanel(event, eventLocations) {
     els.mapPanel.innerHTML = `
       <h3>${event.title}</h3>
-      <p><strong>${event.category}</strong></p>
+      <p><strong>${categoriesDisplay(event)}</strong></p>
       <p>${formatTimeRange(event)} | ${modalLocationLabel(relatedEventsForEvent(event))}</p>
       <div class="panel-events">
         ${eventLocations.map((location) => `
@@ -1501,12 +1511,8 @@
       state.filters.family = true;
     }
 
-    if (filterName === "music") {
-      state.filters.category = "Music";
-    }
-
-    if (filterName === "kids") {
-      state.filters.category = "Kids";
+    if (filterName?.startsWith("category:")) {
+      state.filters.category = filterName.replace("category:", "");
     }
 
     syncFilterInputs();
@@ -1515,7 +1521,7 @@
   }
 
   function updateQuickFilterState(filterName) {
-    els.quickFilters.forEach((button) => {
+    document.querySelectorAll("[data-quick-filter]").forEach((button) => {
       button.classList.toggle("is-active", button.dataset.quickFilter === filterName);
     });
   }
@@ -1525,8 +1531,7 @@
     if (state.filters.today && state.filters.day === "all" && noCategoryFilters) return "today";
     if (state.filters.price === "free" && !state.filters.family && state.filters.category === "all" && state.filters.day === "all") return "free";
     if (state.filters.family && state.filters.price === "all" && state.filters.category === "all" && state.filters.day === "all") return "family";
-    if (state.filters.category === "Music" && state.filters.price === "all" && !state.filters.family && state.filters.day === "all") return "music";
-    if (state.filters.category === "Kids" && state.filters.price === "all" && !state.filters.family && state.filters.day === "all") return "kids";
+    if (state.filters.category !== "all" && state.filters.price === "all" && !state.filters.family && state.filters.day === "all") return `category:${state.filters.category}`;
     return "all";
   }
 
