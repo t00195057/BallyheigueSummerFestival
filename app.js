@@ -221,6 +221,16 @@
         shareTarget(target);
       }
 
+      if (target.dataset.action === "back-schedule") {
+        closeEventModal();
+        setActiveTab("schedule", { scroll: true });
+      }
+
+      if (target.dataset.action === "back-locations") {
+        closeEventModal();
+        setActiveTab("locations", { scroll: true });
+      }
+
       if (target.dataset.action === "toggle-event") {
         openEventModal(eventId);
       }
@@ -390,13 +400,20 @@
 
   function renderQuickFilters(yearEvents) {
     if (!els.quickFilterList) return;
+    const pinnedCategories = ["Music", "Sport"];
+    const hiddenQuickCategories = ["Family"];
     const baseFilters = [
       ["all", "All"],
       ["today", "Today"],
       ["free", "Free"],
-      ["family", "Family"]
+      ["family", "Family"],
+      ...pinnedCategories
+        .filter((category) => categoryFilterOptions(yearEvents).includes(category))
+        .map((category) => [`category:${category}`, category])
     ];
-    const categoryFilters = categoryFilterOptions(yearEvents).map((category) => [`category:${category}`, category]);
+    const categoryFilters = categoryFilterOptions(yearEvents)
+      .filter((category) => !pinnedCategories.includes(category) && !hiddenQuickCategories.includes(category))
+      .map((category) => [`category:${category}`, category]);
     els.quickFilterList.innerHTML = [...baseFilters, ...categoryFilters]
       .map(([value, label]) => `<button class="quick-filter${value === "all" ? " is-active" : ""}" type="button" data-quick-filter="${escapeAttribute(value)}">${label}</button>`)
       .join("");
@@ -710,6 +727,7 @@
     const relatedEvents = relatedEventsForEvent(event);
     const eventLocations = locationsForEvents(relatedEvents);
     els.eventModalContent.innerHTML = `
+      <button class="detail-back-link" type="button" data-action="back-schedule">← Back to Schedule</button>
       <p class="eyebrow">${categoriesDisplay(event)}</p>
       <h2 id="eventModalTitle">${event.title}</h2>
       <div class="event-detail-summary">
@@ -738,7 +756,10 @@
           </div>
         ` : ""}
       </div>
-      <p>${event.description}</p>
+      <section class="detail-about-card">
+        <h3>About this event</h3>
+        <p>${event.description}</p>
+      </section>
       <div class="event-actions event-action-groups">
         <div class="action-group action-group-primary">
           <button class="button primary" type="button" data-action="show-map" data-event-id="${event.id}" data-location-id="${event.locationId}">Show on map</button>
@@ -765,15 +786,15 @@
     const eventDayCount = new Set(placeEvents.map((event) => event.date)).size;
 
     els.eventModalContent.innerHTML = `
+      <button class="detail-back-link" type="button" data-action="back-locations">← Back to Locations</button>
       ${directionsLink(place)}
       <p class="eyebrow">${place.type}</p>
       <h2 id="eventModalTitle">${place.name}</h2>
       <p>${place.description}</p>
       <div class="location-detail-summary">
-        <span><strong>Type:</strong> ${place.type}</span>
-        <span><strong>Events:</strong> ${placeEvents.length}</span>
-        <span><strong>Days:</strong> ${eventDayCount}</span>
-        <span><strong>Map:</strong> ${hasValidCoordinates(place) ? "Shown above" : "TBC"}</span>
+        <span>${place.type}</span>
+        <span>${placeEvents.length} ${placeEvents.length === 1 ? "Event" : "Events"}</span>
+        <span>${eventDayCount} ${eventDayCount === 1 ? "Day" : "Days"}</span>
       </div>
       <div class="location-modal-events">
         <h3>Events here</h3>
@@ -1289,14 +1310,37 @@
     if (state.activeMapPopup) {
       state.activeMapPopup.remove();
     }
+    const properties = feature.properties || {};
+    const locationId = properties.locationId || "";
+    const featureId = properties.featureId || "";
+    const eventCount = locationId
+      ? currentYearEvents().filter((event) => event.locationId === locationId).length
+      : 0;
+    const context = locationId
+      ? `${properties.type} • ${eventCount} ${eventCount === 1 ? "event" : "events"}`
+      : properties.type;
     state.activeMapPopup = new maplibregl.Popup({
       closeButton: false,
       closeOnClick: false,
       offset: 18
     })
       .setLngLat(feature.geometry.coordinates)
-      .setHTML(`<strong>${feature.properties.name}</strong><br>${feature.properties.type}`)
+      .setHTML(`
+        <button class="map-popup-button" type="button">
+          <strong>${properties.name}</strong>
+          <span>${context}</span>
+        </button>
+      `)
       .addTo(state.map);
+    state.activeMapPopup.getElement()
+      ?.querySelector(".map-popup-button")
+      ?.addEventListener("click", () => {
+        if (locationId) {
+          openPlaceModal(`location-${locationId}`);
+        } else if (featureId) {
+          openPlaceModal(`feature-${featureId}`);
+        }
+      });
   }
 
   function setActiveMapPoint(pointId) {
@@ -1320,12 +1364,13 @@
     const yearEvents = currentYearEvents();
     const venueIds = new Set(yearEvents.map((event) => event.locationId).filter(Boolean));
     const dayCount = new Set(yearEvents.map((event) => event.date)).size;
+    const scheduleEventCount = combineScheduleEvents(yearEvents).length;
     return `
       <h3>Explore the festival map</h3>
       <p>Tap a marker to view events, venues, parking, food, toilets and more.</p>
       <div class="map-panel-stats">
         <span><strong>${venueIds.size}</strong> venues</span>
-        <span><strong>${yearEvents.length}</strong> events</span>
+        <span><strong>${scheduleEventCount}</strong> events</span>
         <span><strong>${dayCount}</strong> days</span>
       </div>
     `;
@@ -2116,7 +2161,7 @@
 
     const now = new Date();
     const firstEvent = statusEvents[0];
-    const nextEvent = statusEvents.find((event) => eventStart(event) >= now);
+    const nextEvent = statusEvents.find((event) => eventStart(event) > now);
 
     if (!nextEvent) {
       return `<span class="status-empty">Thanks for joining us in 2026</span>`;

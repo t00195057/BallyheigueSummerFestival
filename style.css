@@ -2283,7 +2283,7 @@ input[type="search"]:focus-visible {
   }
 
   .event-modal-map {
-    min-height: 138px;
+    min-height: 122px;
   }
 
   .event-modal-close {
@@ -2432,7 +2432,122 @@ input[type="search"]:focus-visible {
 }
 
 #festivalMap .maplibregl-popup {
-  z-index: 12;
+  z-index: 80;
+}
+
+.map-popup-button {
+  background: var(--cream);
+  border: 0;
+  color: var(--ink);
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: 0.16rem;
+  padding: 0;
+  text-align: left;
+}
+
+.map-popup-button strong {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.map-popup-button span {
+  color: var(--orange-deep);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.quick-filter-list {
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 2.4rem), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 2.4rem), transparent);
+  scrollbar-width: none;
+}
+
+.quick-filter-list::-webkit-scrollbar {
+  display: none;
+}
+
+.event-modal-card {
+  background:
+    radial-gradient(circle at 15% 10%, rgba(255, 255, 255, 0.38), transparent 28%),
+    linear-gradient(180deg, #fff4d6, #fff0c8);
+}
+
+.event-modal-map {
+  height: 168px;
+  min-height: 168px;
+}
+
+.detail-back-link {
+  align-self: start;
+  background: transparent;
+  border: 0;
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 800;
+  justify-self: start;
+  padding: 0;
+  text-decoration: underline;
+  text-decoration-color: var(--orange);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.18rem;
+}
+
+.detail-about-card {
+  background: rgba(255, 244, 214, 0.78);
+  border: 2px solid rgba(5, 5, 5, 0.36);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.72rem 0.78rem;
+}
+
+.detail-about-card h3 {
+  color: var(--sea-deep);
+  font-family: var(--display-font);
+  font-size: 0.82rem;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.detail-about-card p {
+  color: var(--ink);
+}
+
+.location-detail-summary {
+  gap: 0.28rem;
+  padding: 0.42rem 0.5rem;
+}
+
+.location-detail-summary span {
+  background: rgba(255, 244, 214, 0.78);
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.18rem 0.48rem;
+}
+
+.location-event-list button {
+  gap: 0.42rem;
+  padding: 0.36rem 0.45rem;
+}
+
+.panel-event {
+  padding: 0.24rem 0 0.24rem 0.55rem;
+}
+
+@media (max-width: 520px) {
+  .event-modal-map {
+    height: 122px;
+    min-height: 122px;
+  }
+
+  .event-modal-content h2 {
+    overflow-wrap: anywhere;
+  }
 }
 
 @media (max-width: 520px) {
