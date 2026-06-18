@@ -14,6 +14,13 @@
   const ACTIVE_YEAR = 2026;
   const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
   const locationById = new Map(locations.map((location) => [location.id, location]));
+  const promoImages = [
+    { src: "Images/1.png", alt: "Ball Roll promotion", label: "Ball Roll promotion" },
+    { src: "Images/2.png", alt: "The Eliminator promotion", label: "The Eliminator promotion" },
+    { src: "Images/3.png", alt: "Fun Fair Daily promotion", label: "Fun Fair Daily promotion" },
+    { src: "Images/4.png", alt: "Councillor Michael Leane contact information", label: "Councillor Michael Leane contact information" },
+    { src: "Images/5.png", alt: "Festival sponsors", label: "Festival sponsors" }
+  ];
 
   const state = {
     year: ACTIVE_YEAR,
@@ -35,7 +42,9 @@
     activeTab: "schedule",
     modalMap: null,
     outsideVillageLocations: [],
-    mapOutsideMode: "hint"
+    mapOutsideMode: "hint",
+    promoIndex: 0,
+    promoTimer: null
   };
 
   const els = {
@@ -53,6 +62,8 @@
     clearFilters: document.querySelector("#clearFilters"),
     clearSearchFilters: document.querySelector("#clearSearchFilters"),
     hero: document.querySelector("#home"),
+    promoColumn: document.querySelector("#promoColumn"),
+    promoCarousel: document.querySelector("#promoCarousel"),
     brand: document.querySelector(".brand"),
     resultCount: document.querySelector("#resultCount"),
     scheduleList: document.querySelector("#scheduleList"),
@@ -96,6 +107,8 @@
     renderFilterOptions();
     bindEvents();
     renderMapKeyIcons();
+    renderPromos();
+    startPromoCarousel();
     renderAll();
     window.setInterval(renderHome, 1000);
     els.mapPanel.innerHTML = defaultMapPanelHtml();
@@ -151,6 +164,11 @@
         && !els.mapKey.contains(event.target)
         && !els.mapKeyToggle?.contains(event.target)) {
         toggleMapKey(false);
+      }
+
+      const promoDot = event.target.closest("[data-promo-index]");
+      if (promoDot) {
+        setPromoIndex(Number(promoDot.dataset.promoIndex));
       }
 
       const target = event.target.closest("[data-action], [data-tab-target]");
@@ -394,6 +412,54 @@
     if (els.festivalStatus) {
       els.festivalStatus.innerHTML = festivalStatusHtml(yearEvents);
     }
+  }
+
+  function renderPromos() {
+    if (els.promoColumn) {
+      els.promoColumn.innerHTML = promoImages.map((image) => `
+        <div class="promo-card">
+          <img src="${image.src}" alt="${escapeAttribute(image.alt)}" loading="lazy">
+        </div>
+      `).join("");
+    }
+    renderPromoCarousel();
+  }
+
+  function renderPromoCarousel() {
+    if (!els.promoCarousel) return;
+    const image = promoImages[state.promoIndex] || promoImages[0];
+    els.promoCarousel.innerHTML = `
+      <div class="promo-card promo-carousel-frame">
+        <img src="${image.src}" alt="${escapeAttribute(image.alt)}">
+      </div>
+      <div class="promo-dots" role="tablist" aria-label="Choose promotion">
+        ${promoImages.map((item, index) => `
+          <button
+            class="promo-dot${index === state.promoIndex ? " is-active" : ""}"
+            type="button"
+            data-promo-index="${index}"
+            aria-label="Show ${escapeAttribute(item.label)}"
+            aria-selected="${index === state.promoIndex ? "true" : "false"}"
+          ></button>
+        `).join("")}
+      </div>
+    `;
+  }
+
+  function startPromoCarousel() {
+    if (!els.promoCarousel || promoImages.length < 2) return;
+    window.clearInterval(state.promoTimer);
+    state.promoTimer = window.setInterval(() => {
+      state.promoIndex = (state.promoIndex + 1) % promoImages.length;
+      renderPromoCarousel();
+    }, 5000);
+  }
+
+  function setPromoIndex(index) {
+    state.promoIndex = Number(index) % promoImages.length;
+    if (state.promoIndex < 0) state.promoIndex = 0;
+    renderPromoCarousel();
+    startPromoCarousel();
   }
 
   function renderNow() {
@@ -786,7 +852,8 @@
           "icon-ignore-placement": true,
           "icon-anchor": "center",
           "icon-size": 0.72,
-          "symbol-sort-key": ["get", "sortKey"]
+          "icon-offset": [0, 0],
+          "symbol-sort-key": ["coalesce", ["get", "sortKey"], 0]
         }
       });
     };
@@ -868,6 +935,7 @@
       Community: "Community",
       Competition: "Competitions",
       Culture: "History & culture",
+      Family: "Family",
       Food: "Food",
       Kids: "Kids",
       Music: "Music",
@@ -1043,7 +1111,7 @@
           "icon-ignore-placement": true,
           "icon-anchor": "center",
           "icon-size": ["interpolate", ["linear"], ["zoom"], 11, 0.68, 16, 0.92, 18, 1.08],
-          "icon-offset": ["get", "iconOffset"]
+          "icon-offset": ["coalesce", ["get", "iconOffset"], ["literal", [0, 0]]]
         }
       });
 
@@ -1065,8 +1133,8 @@
             "icon-ignore-placement": true,
             "icon-anchor": "center",
             "icon-size": ["interpolate", ["linear"], ["zoom"], 11, 0.68, 16, 0.92, 18, 1.08],
-            "icon-offset": ["get", "iconOffset"],
-            "symbol-sort-key": ["get", "sortKey"]
+            "icon-offset": ["coalesce", ["get", "iconOffset"], ["literal", [0, 0]]],
+            "symbol-sort-key": ["coalesce", ["get", "sortKey"], 0]
           }
         });
       });
