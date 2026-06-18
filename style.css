@@ -1388,22 +1388,17 @@ input[type="search"]:focus-visible {
 }
 
 .site-footer {
-  align-items: center;
-  background: var(--ink);
-  color: var(--white);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  justify-content: space-between;
-  padding: 1.4rem clamp(1rem, 5vw, 4rem);
+  background: rgba(255, 241, 206, 0.9);
+  border-top: 2px solid var(--ink);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 1rem clamp(1rem, 5vw, 4rem);
+  text-align: center;
 }
 
 .site-footer p {
   margin: 0;
-}
-
-.site-footer a {
-  font-weight: 700;
 }
 
 .event-modal[hidden] {
@@ -1580,7 +1575,18 @@ input[type="search"]:focus-visible {
 }
 
 .modal-map-marker {
+  --marker-size: 1.85rem;
   pointer-events: none;
+}
+
+.modal-map-marker.marker-pub,
+.modal-map-marker.marker-pub-food {
+  --marker-size: 1.9rem;
+}
+
+.modal-map-marker svg {
+  height: 1rem;
+  width: 1rem;
 }
 
 .modal-map-location-hint {

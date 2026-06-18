@@ -100,7 +100,7 @@
     window.setInterval(renderHome, 1000);
     els.mapPanel.innerHTML = defaultMapPanelHtml();
     initMap();
-    setTimeout(alignInitialHash, 120);
+    setTimeout(handleInitialHash, 120);
   }
 
   function bindEvents() {
@@ -199,16 +199,8 @@
         focusFeature(target.dataset.featureId);
       }
 
-      if (target.dataset.action === "calendar") {
-        downloadCalendarEvent(eventId);
-      }
-
-      if (target.dataset.action === "copy-link") {
-        copyEventLink(eventId, target);
-      }
-
       if (target.dataset.action === "share") {
-        shareEvent(eventId);
+        shareTarget(target);
       }
 
       if (target.dataset.action === "toggle-event") {
@@ -244,7 +236,7 @@
 
     els.mapBackHint?.addEventListener("click", backToMainStreet);
 
-    window.addEventListener("hashchange", focusEventFromHash);
+    window.addEventListener("hashchange", openDeepLinkFromHash);
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && !els.searchPanel.hidden) {
         toggleSearch(false);
@@ -345,7 +337,7 @@
     renderHome();
     renderSchedule();
     renderLocations();
-    focusEventFromHash();
+    openDeepLinkFromHash();
   }
 
   function currentYearEvents() {
@@ -647,6 +639,7 @@
   function openEventModal(eventId) {
     const event = events.find((item) => item.id === eventId);
     if (!event) return;
+    setDirectHash("event", event.id);
 
     const relatedEvents = relatedEventsForEvent(event);
     const eventLocations = locationsForEvents(relatedEvents);
@@ -683,11 +676,7 @@
       <div class="event-actions event-action-groups">
         <div class="action-group action-group-primary">
           <button class="button primary" type="button" data-action="show-map" data-event-id="${event.id}" data-location-id="${event.locationId}">Show on map</button>
-          <button class="button primary" type="button" data-action="calendar" data-event-id="${event.id}">Add to Calendar</button>
-        </div>
-        <div class="action-group">
-          <button class="button" type="button" data-action="share" data-event-id="${event.id}">Share</button>
-          <button class="button" type="button" data-action="copy-link" data-event-id="${event.id}">Copy event link</button>
+          <button class="button" type="button" data-action="share" data-share-kind="event" data-event-id="${event.id}">Share</button>
         </div>
       </div>
     `;
@@ -700,6 +689,9 @@
   function openPlaceModal(placeKey) {
     const place = getPlaceByKey(placeKey);
     if (!place) return;
+    if (place.kind === "location") {
+      setDirectHash("location", place.id);
+    }
 
     const placeEvents = place.kind === "location"
       ? currentYearEvents().filter((event) => event.locationId === place.id)
@@ -724,6 +716,7 @@
       <div class="event-actions">
         ${place.kind === "location" ? `<button class="button primary" type="button" data-action="show-map" data-location-id="${place.id}">Show on main map</button>` : `<button class="button primary" type="button" data-action="focus-feature" data-feature-id="${place.id}">Show on main map</button>`}
         ${place.kind === "location" && placeEvents.length ? `<button class="button" type="button" data-action="schedule-location" data-location-id="${place.id}">View in schedule</button>` : ""}
+        ${place.kind === "location" ? `<button class="button" type="button" data-action="share" data-share-kind="location" data-location-id="${place.id}">Share</button>` : ""}
       </div>
     `;
 
@@ -766,22 +759,72 @@
     });
 
     const bounds = new maplibregl.LngLatBounds();
-    validLocations.forEach((location) => {
-      bounds.extend([location.lng, location.lat]);
-      const markerElement = document.createElement("span");
-      markerElement.className = `${markerClassName(location, Boolean(location.icon))} modal-map-marker`;
-      markerElement.innerHTML = markerIcon(location);
-      markerElement.title = location.name;
-      new maplibregl.Marker({ element: markerElement, anchor: "center" })
-        .setLngLat([location.lng, location.lat])
-        .addTo(state.modalMap);
-    });
+    validLocations.forEach((location) => bounds.extend([location.lng, location.lat]));
 
-    if (validLocations.length > 1) {
-      state.modalMap.fitBounds(bounds, { padding: 56, maxZoom: 16.2, duration: 0 });
-    }
+    const addModalMapPoints = () => {
+      if (!state.modalMap || state.modalMap.getSource("modal-event-points")) return;
+      registerMapIcons(state.modalMap);
+      state.modalMap.addSource("modal-event-points", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: validLocations.map((location) => mapPointFeature(location, {
+            pointId: `modal:${location.id}`,
+            locationId: location.id,
+            pointType: "location",
+            kind: location.id === "white-sands" ? "pub-food" : undefined
+          }))
+        }
+      });
+      state.modalMap.addLayer({
+        id: "modal-event-points",
+        type: "symbol",
+        source: "modal-event-points",
+        layout: {
+          "icon-image": ["get", "icon"],
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+          "icon-anchor": "center",
+          "icon-size": 0.72,
+          "symbol-sort-key": ["get", "sortKey"]
+        }
+      });
+    };
 
-    setTimeout(() => state.modalMap?.resize(), 80);
+    const fitModalLocations = () => {
+      if (!state.modalMap) return;
+      state.modalMap.resize();
+      addModalMapPoints();
+      if (validLocations.length > 1) {
+        state.modalMap.fitBounds(bounds, {
+          padding: modalMapPadding(),
+          maxZoom: 16.25,
+          duration: 0
+        });
+      } else {
+        state.modalMap.jumpTo({
+          center: [firstLocation.lng, firstLocation.lat],
+          zoom: 16.2
+        });
+      }
+    };
+
+    state.modalMap.once("load", fitModalLocations);
+    setTimeout(fitModalLocations, 120);
+  }
+
+  function modalMapPadding() {
+    const rect = els.eventModalMap.getBoundingClientRect();
+    const width = Math.max(rect.width || 0, 240);
+    const height = Math.max(rect.height || 0, 140);
+    const side = Math.max(20, Math.min(44, width * 0.08));
+    const vertical = Math.max(18, Math.min(38, height * 0.16));
+    return {
+      top: vertical + 12,
+      right: side,
+      bottom: vertical,
+      left: side
+    };
   }
 
   function getPlaceByKey(placeKey) {
@@ -1565,74 +1608,74 @@
     }
   }
 
-  function downloadCalendarEvent(eventId) {
-    const event = events.find((item) => item.id === eventId);
-    const location = locationById.get(event?.locationId);
-    if (!event) return;
+  async function shareTarget(button) {
+    const kind = button.dataset.shareKind || (button.dataset.eventId ? "event" : "location");
+    const event = kind === "event" ? events.find((item) => item.id === button.dataset.eventId) : null;
+    const location = kind === "location" ? locationById.get(button.dataset.locationId) : null;
+    const title = event?.title || location?.name;
+    const text = event?.description || location?.description || "Ballyheigue Summer Festival";
+    const url = event ? directEventUrl(event.id) : directLocationUrl(location?.id);
+    if (!title || !url) return;
 
-    const ics = [
-      "BEGIN:VCALENDAR",
-      "VERSION:2.0",
-      "PRODID:-//Ballyheigue Summer Festival//Festival Explorer//EN",
-      "BEGIN:VEVENT",
-      `UID:${event.id}@ballyheigue-summer-festival`,
-      `DTSTAMP:${toCalendarDate(new Date())}`,
-      `DTSTART:${toCalendarDate(eventStart(event))}`,
-      `DTEND:${toCalendarDate(eventEnd(event))}`,
-      `SUMMARY:${escapeIcs(event.title)}`,
-      `LOCATION:${escapeIcs(eventLocationName(event) || "Ballyheigue")}`,
-      `DESCRIPTION:${escapeIcs(event.description)}`,
-      "END:VEVENT",
-      "END:VCALENDAR"
-    ].join("\r\n");
-
-    const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `${event.id}.ics`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-  }
-
-  async function copyEventLink(eventId, button) {
-    const url = `${window.location.origin}${window.location.pathname}#event-${eventId}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      button.textContent = "Copied";
-      setTimeout(() => {
-        button.textContent = "Copy event link";
-      }, 1600);
-    } catch {
-      window.location.hash = `event-${eventId}`;
-    }
-  }
-
-  async function shareEvent(eventId) {
-    const event = events.find((item) => item.id === eventId);
-    if (!event) return;
-
-    const url = `${window.location.origin}${window.location.pathname}#event-${event.id}`;
     if (navigator.share) {
-      await navigator.share({
-        title: event.title,
-        text: event.description,
-        url
-      });
-    } else if (navigator.clipboard) {
+      await navigator.share({ title, text, url });
+      return;
+    }
+
+    if (navigator.clipboard) {
       await navigator.clipboard.writeText(url);
-      alert("Event link copied.");
+      const original = button.textContent;
+      button.textContent = "Link copied";
+      setTimeout(() => {
+        button.textContent = original;
+      }, 1600);
     }
   }
 
-  function focusEventFromHash() {
-    const id = window.location.hash.replace("#event-", "");
-    if (!id) return;
-    dismissHero();
-    focusEventCard(id);
+  function directEventUrl(eventId) {
+    return `${window.location.origin}${window.location.pathname}#event=${encodeURIComponent(eventId)}`;
   }
 
-  function alignInitialHash() {
-    if (!window.location.hash || window.location.hash.startsWith("#event-")) {
+  function directLocationUrl(locationId) {
+    if (!locationId) return "";
+    return `${window.location.origin}${window.location.pathname}#location=${encodeURIComponent(locationId)}`;
+  }
+
+  function setDirectHash(kind, id) {
+    const hash = `#${kind}=${encodeURIComponent(id)}`;
+    if (window.location.hash !== hash) {
+      window.history.replaceState(null, "", hash);
+    }
+  }
+
+  function openDeepLinkFromHash() {
+    const params = hashParams();
+    if (params.event) {
+      const event = events.find((item) => item.id === params.event);
+      if (!event) return;
+      dismissHero();
+      setActiveTab("schedule", { scroll: false });
+      openEventModal(event.id);
+      return;
+    }
+    if (params.location) {
+      const location = locationById.get(params.location);
+      if (!location) return;
+      dismissHero();
+      setActiveTab("locations", { scroll: false });
+      openPlaceModal(`location-${location.id}`);
+      return;
+    }
+
+    const legacyEventId = window.location.hash.replace("#event-", "");
+    if (legacyEventId && legacyEventId !== window.location.hash) {
+      dismissHero();
+      openEventModal(legacyEventId);
+    }
+  }
+
+  function handleInitialHash() {
+    if (!window.location.hash || hashParams().event || hashParams().location || window.location.hash.startsWith("#event-")) {
       return;
     }
 
@@ -1654,6 +1697,15 @@
     }
   }
 
+  function hashParams() {
+    const hash = window.location.hash.slice(1);
+    const params = new URLSearchParams(hash.includes("=") ? hash : "");
+    return {
+      event: params.get("event"),
+      location: params.get("location")
+    };
+  }
+
   function focusEventCard(eventId) {
     const card = document.querySelector(`#event-${CSS.escape(eventId)}`);
     if (!card) return;
@@ -1671,15 +1723,16 @@
     return [...grouped.entries()];
   }
 
-  function registerMapIcons() {
+  function registerMapIcons(targetMap = state.map) {
+    if (!targetMap) return;
     ["pub", "pub-food", "food", "shop", "statue", "parking", "toilet", "sauna", "beach", "event"].forEach((kind) => {
       const id = `festival-icon-${kind}`;
-      if (!state.map.hasImage(id)) {
-        state.map.addImage(id, drawMapIcon(kind), { pixelRatio: 2 });
+      if (!targetMap.hasImage(id)) {
+        targetMap.addImage(id, drawMapIcon(kind), { pixelRatio: 2 });
       }
       const haloId = `festival-halo-${kind}`;
-      if (!state.map.hasImage(haloId)) {
-        state.map.addImage(haloId, drawMapHalo(kind), { pixelRatio: 2 });
+      if (!targetMap.hasImage(haloId)) {
+        targetMap.addImage(haloId, drawMapHalo(kind), { pixelRatio: 2 });
       }
     });
   }
@@ -1949,6 +2002,7 @@
       statue: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5c1.4 0 2.3 1 2.2 2.4-.1 1.2-.8 2.1-2.2 2.1s-2.1-.9-2.2-2.1c-.1-1.4.8-2.4 2.2-2.4Z"/><path d="M9.8 7h4.4l1.2 6.4 2.1 1.5-.7 1.4-2.4-.8-1.1 6h-2.1l.3-6.1h-1l-2.2 6.1H6.2l2.6-7.7L9.8 7Z"/></svg>`,
       parking: `<span class="marker-text">P</span>`,
       toilet: `<span class="marker-text">WC</span>`,
+      sauna: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15h12"/><path d="M8 15v3"/><path d="M16 15v3"/><path d="M9 11c-1.2-1.2-1.2-2.6 0-3.8"/><path d="M13 11c-1.2-1.2-1.2-2.6 0-3.8"/><path d="M17 11c-1.2-1.2-1.2-2.6 0-3.8"/><path d="M5 18h14"/></svg>`,
       beach: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 19c3-2 6 2 9 0s6 2 9 0"/><path d="M12 16V7"/><path d="M5 10c4-5 10-5 14 0H5Z"/></svg>`,
       event: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-5 7-11a7 7 0 0 0-14 0c0 6 7 11 7 11Z"/><path d="M12 10h.01"/></svg>`
     };
@@ -2146,18 +2200,6 @@
         Open in Google Maps
       </a>
     `;
-  }
-
-  function toCalendarDate(date) {
-    return date.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
-  }
-
-  function escapeIcs(value) {
-    return String(value)
-      .replace(/\\/g, "\\\\")
-      .replace(/;/g, "\\;")
-      .replace(/,/g, "\\,")
-      .replace(/\n/g, "\\n");
   }
 
   init();

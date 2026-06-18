@@ -176,13 +176,4 @@ window.festivalMapFeatures = [
     description: "Safety point for festival visitors.",
     icon: "safety"
   },
-  {
-    id: "beach-sauna",
-    name: "Beach Sauna",
-    type: "Sauna",
-    lat: 52.38818,
-    lng: -9.83525,
-    description: "Beach sauna location. Coordinates can be adjusted later.",
-    icon: "sauna"
-  },
 ];
