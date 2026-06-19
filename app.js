@@ -297,6 +297,9 @@
   function setActiveTab(tabName, options = {}) {
     if (!tabName) return;
     state.activeTab = tabName;
+    if (tabName !== "map") {
+      clearMapDetailMode();
+    }
 
     els.tabButtons.forEach((button) => {
       const isActive = button.dataset.tabTarget === tabName;
@@ -346,8 +349,19 @@
   function stickyStackHeight() {
     const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize);
     const headerHeight = els.header?.offsetHeight || 0;
+    if (document.body.classList.contains("map-detail-open")) {
+      return headerHeight + (0.75 * rootFontSize);
+    }
     const tabsHeight = els.explorer?.offsetHeight || 0;
     return headerHeight + tabsHeight + (0.75 * rootFontSize);
+  }
+
+  function setMapDetailMode(open) {
+    document.body.classList.toggle("map-detail-open", open);
+  }
+
+  function clearMapDetailMode() {
+    setMapDetailMode(false);
   }
 
   function scrollElementBelowSticky(element, behavior = "smooth") {
@@ -1389,6 +1403,7 @@
   function renderFeaturePanel(featureId) {
     const feature = mapFeatures.find((item) => item.id === featureId);
     if (!feature) return;
+    setMapDetailMode(true);
 
     els.mapPanel.innerHTML = `
       ${directionsLink(feature)}
@@ -1418,6 +1433,7 @@
     const location = locationById.get(locationId);
     const locationEvents = currentYearEvents().filter((event) => event.locationId === locationId);
     if (!location) return;
+    setMapDetailMode(true);
 
     els.mapPanel.innerHTML = `
       ${directionsLink(location)}
@@ -1465,6 +1481,7 @@
   function backToMainStreet() {
     if (!state.map) return;
     state.selectedLocationId = null;
+    clearMapDetailMode();
     state.map.once("moveend", updateOutsideVillageIndicator);
     state.map.flyTo({ center: [-9.835, 52.3894], zoom: 15.65, duration: 500, essential: true });
     setActiveMapPoint("");
@@ -1579,6 +1596,7 @@
 
     setActiveTab("map");
     state.selectedLocationId = null;
+    setMapDetailMode(true);
     state.map.resize();
     const bounds = new maplibregl.LngLatBounds();
     eventLocations.forEach((location) => bounds.extend([location.lng, location.lat]));
@@ -1594,6 +1612,7 @@
   }
 
   function renderMultiLocationMapPanel(event, eventLocations) {
+    setMapDetailMode(true);
     els.mapPanel.innerHTML = `
       <h3>${event.title}</h3>
       <p><strong>${categoriesDisplay(event)}</strong></p>

@@ -3087,3 +3087,23 @@ body {
     top: auto !important;
   }
 }
+
+/* Detail pages should feel like one focused view, without the explorer controls floating over them. */
+body.modal-open .explorer-tabs {
+  display: none !important;
+}
+
+body.map-detail-open .explorer-tabs {
+  position: static !important;
+  top: auto !important;
+  z-index: 1 !important;
+}
+
+body.modal-open .event-modal {
+  top: var(--header-height) !important;
+  z-index: 950 !important;
+}
+
+body.modal-open .event-modal-card {
+  margin-top: 0 !important;
+}
