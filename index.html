@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="preconnect" href="https://tiles.openfreemap.org">
     <link rel="stylesheet" href="vendor/maplibre-gl.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=fixed-header-sticky-filters-20260619">
   </head>
   <body>
     <header class="site-header" id="top">
@@ -25,10 +25,14 @@
         <a href="#explorer" data-tab-target="map">Map</a>
         <a href="#explorer" data-tab-target="locations">Locations</a>
       </nav>
+      <div class="header-actions">
+        <button class="search-clear-floating" type="button" id="clearSearchFilters" hidden>Clear</button>
+        <button class="search-toggle" id="searchToggle" type="button" aria-expanded="false" aria-controls="siteSearch" aria-label="Open search">
+          <span aria-hidden="true">🔍</span>
+        </button>
+      </div>
     </header>
 
-    <button class="search-clear-floating" type="button" id="clearSearchFilters" hidden>Clear</button>
-    <button class="search-toggle" id="searchToggle" type="button" aria-expanded="false" aria-controls="siteSearch" aria-label="Open search"></button>
     <div class="floating-search" id="siteSearch" hidden>
       <div class="search-row">
         <div class="filter-field">
