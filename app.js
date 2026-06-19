@@ -338,21 +338,21 @@
           : document.querySelector("#explorer");
     if (!scrollTarget) return;
 
-    const stickyOffset = window.matchMedia("(max-width: 520px)").matches
-      ? 12.4 * parseFloat(getComputedStyle(document.documentElement).fontSize)
-      : 8 * parseFloat(getComputedStyle(document.documentElement).fontSize);
+    const stickyOffset = stickyStackHeight();
     const top = scrollTarget.getBoundingClientRect().top + window.scrollY - stickyOffset;
     window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
   }
 
-  function scrollElementBelowSticky(element, behavior = "smooth") {
-    if (!element) return;
+  function stickyStackHeight() {
     const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize);
     const headerHeight = els.header?.offsetHeight || 0;
     const tabsHeight = els.explorer?.offsetHeight || 0;
-    const stickyOffset = window.matchMedia("(max-width: 720px)").matches
-      ? headerHeight + tabsHeight + rootFontSize
-      : 6.5 * rootFontSize;
+    return headerHeight + tabsHeight + (0.75 * rootFontSize);
+  }
+
+  function scrollElementBelowSticky(element, behavior = "smooth") {
+    if (!element) return;
+    const stickyOffset = stickyStackHeight();
     const top = element.getBoundingClientRect().top + window.scrollY - stickyOffset;
     window.scrollTo({ top: Math.max(0, top), behavior });
   }
@@ -1860,7 +1860,7 @@
   function focusEventCard(eventId) {
     const card = document.querySelector(`#event-${CSS.escape(eventId)}`);
     if (!card) return;
-    card.scrollIntoView({ behavior: "smooth", block: "center" });
+    scrollElementBelowSticky(card);
     card.classList.remove("highlight-pulse");
     requestAnimationFrame(() => card.classList.add("highlight-pulse"));
   }

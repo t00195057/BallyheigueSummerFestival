@@ -16,6 +16,7 @@
   --radius: 8px;
   --display-font: "Arial Narrow", "Franklin Gothic Medium", Arial, Helvetica, sans-serif;
   --heading-font: "Franklin Gothic Medium", "Arial Narrow", Arial, Helvetica, sans-serif;
+  --header-height: 4.35rem;
 }
 
 * {
@@ -67,7 +68,8 @@ select {
   position: sticky;
   right: 0;
   top: 0;
-  z-index: 40;
+  min-height: var(--header-height);
+  z-index: 90;
 }
 
 .search-toggle {
@@ -85,7 +87,7 @@ select {
   right: 1rem;
   top: calc((4.35rem - 3rem) / 2);
   width: 3rem;
-  z-index: 70;
+  z-index: 120;
 }
 
 .search-toggle::before {
@@ -560,8 +562,8 @@ input[type="search"]:focus-visible {
   gap: 0.65rem;
   padding: 0.85rem clamp(1rem, 5vw, 4rem) 1rem;
   position: sticky;
-  top: 3.45rem;
-  z-index: 30;
+  top: var(--header-height);
+  z-index: 80;
 }
 
 .tab-list {
@@ -2801,5 +2803,67 @@ main {
 
   .map-heading p:not(.eyebrow) {
     display: none;
+  }
+}
+
+/* Sticky navigation repair */
+.site-header {
+  isolation: isolate;
+}
+
+.explorer-tabs {
+  box-shadow: 0 5px 0 rgba(0, 132, 145, 0.16), 0 12px 22px rgba(8, 8, 8, 0.12);
+}
+
+.tab-panel,
+.map-panel,
+.location-card,
+.event-card {
+  position: relative;
+  z-index: 1;
+}
+
+#festivalMap .maplibregl-popup {
+  z-index: 110;
+}
+
+.event-modal {
+  z-index: 150;
+}
+
+.location-event-list strong {
+  color: var(--orange-deep);
+}
+
+.location-event-list .place-event-main span {
+  color: var(--ink);
+}
+
+@media (max-width: 520px) {
+  :root {
+    --header-height: 4.35rem;
+  }
+
+  .site-header {
+    top: 0;
+    z-index: 90;
+  }
+
+  .explorer-tabs {
+    top: var(--header-height);
+    z-index: 80;
+  }
+
+  .search-toggle,
+  .search-clear-floating {
+    z-index: 125;
+  }
+
+  .search-toggle {
+    right: 0.68rem;
+  }
+
+  .tab-panel {
+    scroll-margin-top: calc(var(--header-height) + 8.5rem);
   }
 }
