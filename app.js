@@ -15,11 +15,11 @@
   const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
   const locationById = new Map(locations.map((location) => [location.id, location]));
   const promoImages = [
-    { src: "Images/1.png", alt: "Ball Roll promotion", label: "Ball Roll promotion" },
-    { src: "Images/2.png", alt: "The Eliminator promotion", label: "The Eliminator promotion" },
-    { src: "Images/3.png", alt: "Fun Fair Daily promotion", label: "Fun Fair Daily promotion" },
-    { src: "Images/4.png", alt: "Councillor Michael Leane contact information", label: "Councillor Michael Leane contact information" },
-    { src: "Images/5.png", alt: "Festival sponsors", label: "Festival sponsors" }
+    { src: "Images/1.png", alt: "Ball Roll promotion", label: "Ball Roll promotion", bgColor: "#2358a8" },
+    { src: "Images/2.png", alt: "The Eliminator promotion", label: "The Eliminator promotion", bgColor: "#ec3b8f" },
+    { src: "Images/3.png", alt: "Fun Fair Daily promotion", label: "Fun Fair Daily promotion", bgColor: "#2aa85a" },
+    { src: "Images/4.png", alt: "Councillor Michael Leane contact information", label: "Councillor Michael Leane contact information", bgColor: "#f58220" },
+    { src: "Images/5.png", alt: "Festival sponsors", label: "Festival sponsors", bgColor: "#fff4d6" }
   ];
 
   const state = {
@@ -65,6 +65,8 @@
     promoColumn: document.querySelector("#promoColumn"),
     promoCarousel: document.querySelector("#promoCarousel"),
     brand: document.querySelector(".brand"),
+    header: document.querySelector(".site-header"),
+    explorer: document.querySelector("#explorer"),
     resultCount: document.querySelector("#resultCount"),
     scheduleList: document.querySelector("#scheduleList"),
     mapPanel: document.querySelector("#mapPanel"),
@@ -343,6 +345,18 @@
     window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
   }
 
+  function scrollElementBelowSticky(element, behavior = "smooth") {
+    if (!element) return;
+    const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize);
+    const headerHeight = els.header?.offsetHeight || 0;
+    const tabsHeight = els.explorer?.offsetHeight || 0;
+    const stickyOffset = window.matchMedia("(max-width: 720px)").matches
+      ? headerHeight + tabsHeight + rootFontSize
+      : 6.5 * rootFontSize;
+    const top = element.getBoundingClientRect().top + window.scrollY - stickyOffset;
+    window.scrollTo({ top: Math.max(0, top), behavior });
+  }
+
   function dismissHero() {
     els.hero?.classList.add("is-dismissed");
   }
@@ -434,8 +448,10 @@
   function renderPromos() {
     if (els.promoColumn) {
       els.promoColumn.innerHTML = promoImages.map((image) => `
-        <div class="promo-card">
-          <img src="${image.src}" alt="${escapeAttribute(image.alt)}" loading="lazy">
+        <div class="promo-card" style="--slide-bg: ${image.bgColor}">
+          <div class="promo-slide">
+            <img src="${image.src}" alt="${escapeAttribute(image.alt)}" loading="lazy">
+          </div>
         </div>
       `).join("");
     }
@@ -446,8 +462,10 @@
     if (!els.promoCarousel) return;
     const image = promoImages[state.promoIndex] || promoImages[0];
     els.promoCarousel.innerHTML = `
-      <div class="promo-card promo-carousel-frame">
-        <img src="${image.src}" alt="${escapeAttribute(image.alt)}">
+      <div class="promo-card promo-carousel-frame" style="--slide-bg: ${image.bgColor}">
+        <div class="promo-slide">
+          <img src="${image.src}" alt="${escapeAttribute(image.alt)}">
+        </div>
       </div>
       <div class="promo-dots" role="tablist" aria-label="Choose promotion">
         ${promoImages.map((item, index) => `
@@ -599,7 +617,10 @@
         <article class="location-card compact-location-card" data-place-card="${place.placeKey}">
           <button class="location-summary" type="button" data-action="toggle-place" data-place-key="${place.placeKey}">
             <span>
-              <small>${place.type}</small>
+              <span class="location-type-row">
+                <span class="location-type-icon ${locationTypeIconClass(place)}" aria-hidden="true"></span>
+                <small>${place.type}</small>
+              </span>
               <strong>${place.name}</strong>
               ${nextEventHtml}
             </span>
@@ -663,6 +684,20 @@
 
   function placeTypeAndIcon(place) {
     return `${place.type || ""} ${place.icon || ""} ${place.name || ""}`.toLowerCase();
+  }
+
+  function locationTypeIconClass(place) {
+    const text = placeTypeAndIcon(place);
+    if (isBarPlace(place)) return "is-pub";
+    if (isFoodPlace(place)) return "is-food";
+    if (isShopPlace(place)) return "is-shop";
+    if (isParkingPlace(place)) return "is-parking";
+    if (isToiletPlace(place)) return "is-wc";
+    if (text.includes("beach") || text.includes("sauna") || text.includes("green") || text.includes("park")) {
+      return "is-outdoor";
+    }
+    if (text.includes("castle") || text.includes("statue") || text.includes("landmark")) return "is-landmark";
+    return "is-venue";
   }
 
   function isBarPlace(place) {
@@ -1288,6 +1323,9 @@
     }
 
     showMapPointPopup(feature);
+    if (window.matchMedia("(max-width: 720px)").matches) {
+      setTimeout(() => scrollElementBelowSticky(els.mapPanel), 80);
+    }
   }
 
   function handleMapPointHover(event) {
@@ -1524,7 +1562,7 @@
     updateOutsideVillageIndicator();
 
     if (options.scroll) {
-      document.querySelector("#explorer").scrollIntoView({ behavior: "smooth" });
+      setTimeout(() => scrollElementBelowSticky(options.openPanel ? els.mapPanel : document.querySelector("#map-section")), 80);
     }
   }
 
@@ -1551,7 +1589,7 @@
     setTimeout(updateOutsideVillageIndicator, 650);
 
     if (options.scroll) {
-      document.querySelector("#explorer").scrollIntoView({ behavior: "smooth" });
+      setTimeout(() => scrollElementBelowSticky(els.mapPanel), 80);
     }
   }
 
@@ -1591,7 +1629,7 @@
       properties: { name: feature.name, type: feature.type }
     });
     renderFeaturePanel(featureId);
-    document.querySelector("#explorer").scrollIntoView({ behavior: "smooth" });
+    setTimeout(() => scrollElementBelowSticky(els.mapPanel), 80);
   }
 
   function filterByLocation(locationId) {

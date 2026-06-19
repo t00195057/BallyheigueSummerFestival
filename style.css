@@ -36,6 +36,11 @@ body {
   line-height: 1.5;
 }
 
+html,
+body {
+  overflow-x: hidden;
+}
+
 body.modal-open {
   overflow: hidden;
 }
@@ -2562,5 +2567,239 @@ input[type="search"]:focus-visible {
     left: 0.55rem;
     max-width: 8.8rem;
     top: 5rem;
+  }
+}
+
+/* Final leaflet-style polish */
+main {
+  background:
+    radial-gradient(circle at 12% 18%, rgba(0, 132, 145, 0.045) 0 1.2px, transparent 1.8px),
+    radial-gradient(circle at 82% 12%, rgba(245, 130, 32, 0.035) 0 1.1px, transparent 1.7px),
+    linear-gradient(135deg, transparent 0 45%, rgba(0, 132, 145, 0.026) 45% 48%, transparent 48% 100%),
+    linear-gradient(180deg, rgba(255, 250, 229, 0.82), rgba(255, 241, 206, 0.96));
+  background-size: 46px 46px, 58px 58px, 72px 72px, auto;
+}
+
+.hero,
+.explorer-tabs,
+.section,
+.site-footer {
+  border-top-color: rgba(0, 132, 145, 0.62);
+}
+
+.section {
+  border-top: 2px solid rgba(0, 132, 145, 0.42);
+}
+
+.section-heading::after {
+  background: linear-gradient(90deg, var(--sea-deep), var(--orange), transparent);
+  border-radius: 999px;
+  content: "";
+  display: block;
+  height: 3px;
+  margin-top: 0.55rem;
+  width: 4.8rem;
+}
+
+.map-heading {
+  margin-bottom: 0.75rem;
+}
+
+.promo-card {
+  background: rgba(255, 244, 214, 0.98);
+  border-width: 3px;
+  padding: 0.34rem;
+}
+
+.promo-slide {
+  align-items: center;
+  background: var(--slide-bg, #f8d98a);
+  border-radius: calc(var(--radius) - 5px);
+  display: flex;
+  height: clamp(118px, 28vw, 220px);
+  justify-content: center;
+  overflow: hidden;
+  width: 100%;
+}
+
+.promo-slide img {
+  display: block;
+  height: auto;
+  max-height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  width: auto;
+}
+
+.promo-carousel-frame {
+  height: auto;
+}
+
+.promo-carousel-frame .promo-slide {
+  height: clamp(108px, 28vw, 142px);
+}
+
+.location-type-row {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.34rem;
+}
+
+.location-type-icon {
+  align-items: center;
+  background: rgba(255, 130, 24, 0.16);
+  border: 1.5px solid var(--sea-deep);
+  border-radius: 999px;
+  color: var(--ink);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 0.54rem;
+  font-weight: 900;
+  height: 1.05rem;
+  justify-content: center;
+  line-height: 1;
+  width: 1.05rem;
+}
+
+.location-type-icon::before {
+  content: "V";
+}
+
+.location-type-icon.is-pub::before {
+  content: "P";
+}
+
+.location-type-icon.is-food::before {
+  content: "F";
+}
+
+.location-type-icon.is-shop::before {
+  content: "S";
+}
+
+.location-type-icon.is-parking::before {
+  content: "P";
+}
+
+.location-type-icon.is-wc {
+  font-size: 0.46rem;
+}
+
+.location-type-icon.is-wc::before {
+  content: "WC";
+}
+
+.location-type-icon.is-outdoor::before {
+  content: "~";
+}
+
+.location-type-icon.is-landmark::before {
+  content: "L";
+}
+
+.site-footer {
+  background:
+    radial-gradient(circle at 50% -2rem, rgba(0, 132, 145, 0.16), transparent 5rem),
+    rgba(255, 244, 214, 0.96);
+  border-top: 3px solid var(--sea-deep);
+  color: var(--ink);
+  display: grid;
+  gap: 0.15rem;
+  padding: 1.25rem clamp(1rem, 5vw, 4rem);
+}
+
+.site-footer::before {
+  color: var(--sea-deep);
+  content: "~~~~";
+  display: block;
+  font-size: 0.9rem;
+  letter-spacing: 0.18rem;
+  line-height: 1;
+  margin-bottom: 0.2rem;
+}
+
+.site-footer p {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.site-footer span {
+  color: var(--muted);
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+@media (min-width: 900px) {
+  .promo-column .promo-card {
+    height: auto;
+  }
+
+  .promo-column .promo-slide {
+    height: clamp(76px, 11vh, 116px);
+  }
+}
+
+@media (max-width: 520px) {
+  .hero-layout,
+  .hero-content,
+  .date-card,
+  .festival-status,
+  .promo-carousel,
+  .promo-card {
+    box-sizing: border-box;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .date-card,
+  .festival-status,
+  .promo-carousel {
+    width: 100%;
+  }
+
+  .countdown-tiles {
+    gap: 0.16rem;
+  }
+
+  .countdown-tile {
+    border-width: 1.5px;
+    border-radius: 0.46rem;
+    padding: 0.28rem 0.04rem 0.24rem;
+  }
+
+  .countdown-tile strong {
+    font-size: clamp(1.05rem, 6.3vw, 1.55rem);
+  }
+
+  .countdown-tile em {
+    font-size: 0.48rem;
+  }
+
+  .promo-carousel-frame .promo-slide {
+    height: 108px;
+  }
+
+  .map-layout {
+    padding-top: 1rem;
+  }
+
+  .map-heading {
+    display: block;
+    margin-bottom: 0.55rem;
+  }
+
+  .map-heading .eyebrow {
+    display: block;
+    font-size: 0.68rem;
+    margin-bottom: 0.12rem;
+  }
+
+  .map-heading h2 {
+    font-size: 1.45rem;
+  }
+
+  .map-heading p:not(.eyebrow) {
+    display: none;
   }
 }
