@@ -26,7 +26,5 @@ window.festivalLocations = [
   { id: "beach-sauna", name: "Beach Sauna", type: "Sauna", lat: 52.38818, lng: -9.83525, description: "Beach sauna location. Coordinates can be adjusted later." },
   { id: "golf-club", name: "Golf Club", type: "Sports", lat: 52.39268026423675, lng: -9.8391699, description: "Ballyheigue golf club." },
   { id: "dromatoor-pier", name: "Dromatoor Pier", type: "Pier", lat: 52.392146587313405, lng: -9.863809419085 ,description: "Pier meeting point for outdoor events. Coordinates to be confirmed." },
-  { id: "kerryhead-frc", name: "Family Resource Centre", type: "Family Resource Centre", lat: 52.392122450333176, lng: -9.842406559288298 ,description: "Family Resource Centre venue. Coordinates to be confirmed." },
-  { id: "The Peachy Bean", name: "Beach Box Coffee", type: "Coffee Shop", lat: 52.389393296021666,  lng: -9.83268775785045,  description: "Coffee shop serving hot drinks, coffee and refreshments."
-},
+  { id: "kerryhead-frc", name: "Family Resource Centre", type: "Family Resource Centre", lat: 52.392122450333176, lng: -9.842406559288298 ,description: "Family Resource Centre venue. Coordinates to be confirmed." } 
 ];

@@ -54,10 +54,11 @@ window.festivalMapFeatures = [
     id: "shafis-takeaway",
     name: "Shafi's Takeaway",
     type: "Takeaway",
-    lat: 52.389218,
-    lng: -9.832711,
+    lat: 52.389223380592384,
+    lng: -9.832723828702889,
     description: "Takeaway food outlet.",
     icon: "takeaway"
+     
   },
   {
     id: "brassils-pharmacy",
@@ -149,6 +150,14 @@ window.festivalMapFeatures = [
     description: "Local bus stop.",
     icon: "bus"
   },
+  {
+  id: "the-peachy-bean",
+  name: "The Peachy Bean",
+  type: "Cafe",
+  lat: 52.38920127490612, 
+  lng: -9.832813833278154,
+  description: "Coffee shop serving hot drinks, coffee and refreshments."
+},
   {
     id: "golf-club",
     name: "Golf Club",
