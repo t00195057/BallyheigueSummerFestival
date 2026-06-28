@@ -43,11 +43,21 @@ body::before {
     inset: 0;
     z-index: 0;
     pointer-events: none;
+    background: url("salon-background.png") center top / cover no-repeat;
+    opacity: 0.24;
+    filter: saturate(0.92) contrast(0.98);
+}
+
+body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
     background:
-        linear-gradient(180deg, rgba(246, 231, 219, 0.88), rgba(249, 242, 234, 0.9)),
-        url("salon-background.png") center top / cover no-repeat;
-    opacity: 0.3;
-    filter: saturate(0.9);
+        radial-gradient(circle at top left, rgba(239, 194, 173, 0.22), transparent 42%),
+        radial-gradient(circle at bottom right, rgba(202, 114, 85, 0.12), transparent 40%),
+        linear-gradient(180deg, rgba(246, 231, 219, 0.58), rgba(249, 242, 234, 0.64));
 }
 
 button,
