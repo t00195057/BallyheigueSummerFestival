@@ -11,7 +11,7 @@ window.festivalLocations = [
   { id: "white-sands", name: "White Sands Hotel", type: "Pub", lat: 52.389053, lng: -9.833439, description: "Bar and festival venue near Ballyheigue Beach." },
   { id: "village-green", name: "Village Green", type: "Green", lat: 52.389226, lng: -9.835136, description: "Village green used for family and community events." },
   { id: "community-centre", name: "Ballyheigue Community Centre", type: "Community Centre", lat: 52.388343, lng: -9.833298, description: "Community centre venue for indoor events." },
-  { id: "kirbys", name: "Kirby's Bar", type: "Pub", lat: 52.389184, lng: -9.832875, description: "Pub venue for music, bingo, karaoke and festival nightlife." },
+  { id: "kirbys", name: "Kirby's Bar", type: "Pub", lat: 52.3891831884273, lng: -9.832909325937274, description: "Pub venue for music, bingo, karaoke and festival nightlife." },
   { id: "flahives", name: "Flahives Bar", type: "Pub", lat: 52.389437, lng: -9.831626, description: "Festival pub venue for music and social events." },
   { id: "reagans", name: "O'Regan's Bar", type: "Pub", lat: 52.389216, lng: -9.832493, description: "Festival pub venue." },
   { id: "castle-gates", name: "Castle Gates", type: "Landmark", lat: 52.389912, lng: -9.835467, description: "Meeting point at the castle gates." },
@@ -28,3 +28,4 @@ window.festivalLocations = [
   { id: "dromatoor-pier", name: "Dromatoor Pier", type: "Pier", lat: 52.392146587313405, lng: -9.863809419085 ,description: "Pier meeting point for outdoor events. Coordinates to be confirmed." },
   { id: "kerryhead-frc", name: "Family Resource Centre", type: "Family Resource Centre", lat: 52.392122450333176, lng: -9.842406559288298 ,description: "Family Resource Centre venue. Coordinates to be confirmed." } 
 ];
+ 

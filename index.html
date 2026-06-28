@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Ballyheigue Summer Festival explorer with events, locations, maps and year archives.">
+    <meta name="theme-color" content="#f58220">
+    <title>Ballyheigue Summer Festival</title>
+    <link rel="icon" href="icons/favicon-16.png" type="image/png" sizes="16x16">
+    <link rel="icon" href="icons/favicon-32.png" type="image/png" sizes="32x32">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="preconnect" href="https://tiles.openfreemap.org">
+    <link rel="stylesheet" href="vendor/maplibre-gl.css">
+    <link rel="stylesheet" href="style.css?v=selected-detail-scroll-fix-20260619">
+  </head>
+  <body>
+    <header class="site-header" id="top">
+      <a class="brand" href="#home" aria-label="Ballyheigue Summer Festival home">
+        <img class="brand-mark" src="icons/icon-192.png" alt="" aria-hidden="true" width="36" height="36">
+        <span>Ballyheigue Summer Festival</span>
+      </a>
+      <nav class="nav-links" aria-label="Main navigation">
+        <a href="#explorer" data-tab-target="schedule">Schedule</a>
+        <a href="#explorer" data-tab-target="map">Map</a>
+        <a href="#explorer" data-tab-target="locations">Locations</a>
+      </nav>
+      <div class="header-actions">
+        <button class="search-clear-floating" type="button" id="clearSearchFilters" hidden>Clear</button>
+        <button class="search-toggle" id="searchToggle" type="button" aria-expanded="false" aria-controls="siteSearch" aria-label="Open search">
+          <span aria-hidden="true">🔍</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="floating-search" id="siteSearch" hidden>
+      <div class="search-row">
+        <div class="filter-field">
+          <label for="searchInput">Search events</label>
+          <input id="searchInput" type="search" placeholder="Search events or descriptions">
+        </div>
+        <button class="button" type="button" id="searchClose">Close</button>
+      </div>
+
+      <form class="filters" id="filters" aria-label="Schedule filters">
+        <div class="filter-field">
+          <label for="dayFilter">Day</label>
+          <select id="dayFilter"></select>
+        </div>
+        <div class="filter-field">
+          <label for="categoryFilter">Category</label>
+          <select id="categoryFilter"></select>
+        </div>
+        <div class="filter-field">
+          <label for="locationFilter">Location</label>
+          <select id="locationFilter"></select>
+        </div>
+        <div class="filter-field">
+          <label for="priceFilter">Price</label>
+          <select id="priceFilter">
+            <option value="all">Free and paid</option>
+            <option value="free">Free only</option>
+            <option value="paid">Paid only</option>
+          </select>
+        </div>
+        <label class="check-field">
+          <input id="familyFilter" type="checkbox">
+          <span>Family friendly</span>
+        </label>
+        <button class="button clear-button" type="button" id="clearFilters">Clear filters</button>
+      </form>
+    </div>
+
+    <main>
+      <section class="hero" id="home">
+        <div class="hero-layout">
+          <div class="hero-content">
+            <p class="eyebrow">Festival Explorer</p>
+            <h1>Ballyheigue Summer Festival</h1>
+            <p class="subtitle">Events, music, family fun and community celebrations in Ballyheigue</p>
+
+            <div class="hero-controls date-card" aria-label="Festival dates">
+              <span>2026 Festival Dates</span>
+              <p class="festival-dates" id="festivalDates">Loading festival dates...</p>
+              <div class="festival-status" id="festivalStatus">Checking festival status...</div>
+            </div>
+
+            <div class="promo-carousel" id="promoCarousel" aria-label="Festival promotions"></div>
+          </div>
+
+          <aside class="promo-column" id="promoColumn" aria-label="Festival promotions"></aside>
+        </div>
+      </section>
+
+      <section class="explorer-tabs" id="explorer" aria-label="Festival explorer tabs">
+        <div class="tab-list" role="tablist" aria-label="Choose festival view">
+          <button class="tab-button is-active" id="tab-schedule" type="button" role="tab" aria-selected="true" aria-controls="schedule" data-tab-target="schedule">Schedule</button>
+          <button class="tab-button" id="tab-map" type="button" role="tab" aria-selected="false" aria-controls="map-section" data-tab-target="map">Map</button>
+          <button class="tab-button" id="tab-locations" type="button" role="tab" aria-selected="false" aria-controls="locations" data-tab-target="locations">Locations</button>
+        </div>
+        <div class="quick-filter-list" aria-label="Quick filters">
+          <button class="quick-filter is-active" type="button" data-quick-filter="all">All</button>
+          <button class="quick-filter" type="button" data-quick-filter="today">Today</button>
+          <button class="quick-filter" type="button" data-quick-filter="free">Free</button>
+          <button class="quick-filter" type="button" data-quick-filter="family">Family</button>
+        </div>
+        <div class="location-filter-list explorer-location-filters" aria-label="Place filters" hidden>
+          <button class="location-filter is-active" type="button" data-location-directory-filter="all">All</button>
+          <button class="location-filter" type="button" data-location-directory-filter="bar">Bar</button>
+          <button class="location-filter" type="button" data-location-directory-filter="food">Food</button>
+          <button class="location-filter" type="button" data-location-directory-filter="shop">Shop</button>
+          <button class="location-filter" type="button" data-location-directory-filter="events">Events</button>
+          <button class="location-filter" type="button" data-location-directory-filter="parking">Parking</button>
+          <button class="location-filter" type="button" data-location-directory-filter="wc">WC</button>
+        </div>
+      </section>
+
+      <section class="section schedule-section tab-panel" id="schedule" role="tabpanel" aria-labelledby="tab-schedule" data-tab-panel="schedule">
+        <div class="section-heading">
+          <p class="eyebrow">Browse</p>
+          <h2>Schedule</h2>
+          <p>Search by event, filter by day, category, price, family-friendly events or venue.</p>
+        </div>
+
+        <p class="result-count" id="resultCount"></p>
+        <div class="schedule-list" id="scheduleList"></div>
+      </section>
+
+      <section class="section map-layout tab-panel" id="map-section" role="tabpanel" aria-labelledby="tab-map" data-tab-panel="map" hidden>
+        <div class="section-heading map-heading">
+          <p class="eyebrow">Discover</p>
+          <h2>Festival Map</h2>
+          <p>Click a marker to see everything happening at that location for the selected year.</p>
+        </div>
+        <div class="map-shell">
+          <aside class="map-key" id="mapKey" aria-label="Map key">
+            <h3>Map key</h3>
+            <div><span class="key-icon" data-key-kind="pub" aria-hidden="true"></span> Pubs and bars</div>
+            <div><span class="key-icon" data-key-kind="food" aria-hidden="true"></span> Food and cafes</div>
+            <div><span class="key-icon" data-key-kind="shop" aria-hidden="true"></span> Shops and pharmacy</div>
+            <div><span class="key-icon" data-key-kind="parking" aria-hidden="true"></span> Parking</div>
+            <div><span class="key-icon" data-key-kind="toilet" aria-hidden="true"></span> Bathrooms</div>
+            <div><span class="key-icon" data-key-kind="statue" aria-hidden="true"></span> Statue</div>
+            <div><span class="key-icon" data-key-kind="event" aria-hidden="true"></span> Festival venues</div>
+          </aside>
+          <button class="map-key-toggle" id="mapKeyToggle" type="button" aria-expanded="false" aria-controls="mapKey" aria-label="Open map key">?</button>
+          <div id="festivalMap" aria-label="Interactive Ballyheigue festival map"></div>
+          <button class="map-return-hint" id="mapBackHint" type="button" hidden><span>← Main Street</span></button>
+          <button class="map-edge-hint map-edge-hint-left" id="mapLeftHint" type="button" hidden><span>← 0 locations</span></button>
+          <button class="map-edge-hint map-edge-hint-right" id="mapRightHint" type="button" hidden><span>0 locations →</span></button>
+          <aside class="map-panel" id="mapPanel" aria-live="polite">
+            <h3>Explore the festival map</h3>
+            <p>Tap a marker to view events, venues, parking, food, toilets and more.</p>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section tab-panel" id="locations" role="tabpanel" aria-labelledby="tab-locations" data-tab-panel="locations" hidden>
+        <div class="section-heading">
+          <p class="eyebrow">Venues</p>
+          <h2>Locations</h2>
+          <p>Browse festival places and jump straight to the events happening there.</p>
+        </div>
+        <div class="locations-grid" id="locationsGrid"></div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Proudly created in Ballyheigue</p>
+      <span>Helping visitors discover the festival, its events and its community.</span>
+    </footer>
+
+    <div class="event-modal" id="eventModal" hidden>
+      <div class="event-modal-backdrop" data-action="close-event-modal"></div>
+      <section class="event-modal-card" role="dialog" aria-modal="true" aria-labelledby="eventModalTitle">
+        <button class="event-modal-close" type="button" data-action="close-event-modal" aria-label="Close event details">Close</button>
+        <div class="event-modal-map" id="eventModalMap" aria-label="Event location map"></div>
+        <div class="event-modal-content" id="eventModalContent"></div>
+      </section>
+    </div>
+
+    <script src="vendor/maplibre-gl.js"></script>
+    <script src="data/locations.js"></script>
+    <script src="data/map-features.js"></script>
+    <script src="data/events.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
